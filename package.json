@@ -1,0 +1,34 @@
+{
+  "name": "gtfs2lc",
+  "version": "0.0.1",
+  "description": "Mapping script from gtfs to linked connnections",
+  "main": "gtfs-csv2rdf",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/LinkedConnections/gtfs2lc.git"
+  },
+  "keywords": [
+    "GTFS",
+    "Linked Connections",
+    "RDF"
+  ],
+  "author": "Pieter Colpaert",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/LinkedConnections/gtfs2lc/issues"
+  },
+  "dependencies": {
+    "n3": "~0.3.0",
+    "unzip": "~0.1.9",
+    "csv": "~0.4.0",
+    "level": "~0.18.0",
+    "q": "~1.2.0",
+    "async": "~0.9.0",
+    "stream-iterator": "0.0.1",
+    "leveldown": "~0.10.4",
+    "mongodb": "~2.0.28"
+  }
+}
