@@ -2,13 +2,17 @@
 /* Pieter Colpaert */
 
 /**
- * This script reads a zipped GTFS archive and maps it into RDF (text/turtle) in a streaming fashion
+ * This script reads an unzipped GTFS archive and maps it to a stream of connections
  */
 
-var fs = require('fs');
-var N3 = require('n3');
-var N3Util = N3.util;
-var Mapper = require('./lib/gtfs-csv2connections.js');
+var fs = require('fs'),
+    N3 = require('n3'),
+    N3Util = N3.util,
+    program = require('commander'),
+    Mapper = require('./lib/gtfs2lc.js');
+
+console.error("GTFS to Linked Connections convertor. Use --help to discover more options.");
+
 var die = function (msg) {
   console.log(msg);
   process.exit();
