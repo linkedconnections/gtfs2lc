@@ -5,6 +5,12 @@ Transforms a GTFS file towards a directed acyclic graph of "connections".
 A connection is the combination of a departure and its successive arrival of the same trip. 
 Our goal is to retrieve a list of connections that is sorted by departure time, better known as a Directed Acyclic Graph. This way, routeplanning algorithms can be performed.
 
+## Install it
+
+```
+npm install -g gtfs2lc
+```
+
 ## Use it
 
 First, __unzip__ your GTFS file to a place on your disk using e.g., `unzip gtfs.zip /tmp`
@@ -18,8 +24,10 @@ Now, we need to make sure that a couple of files are ordered in a specific fashi
 If you've ensured this, you can install this library using: `npm install -g gtfs2lc` and use it as follows:
 
 ```bash
-gtfs2lc /path/to/extracted/gtfs
+gtfs2lc -p /path/to/extracted/gtfs -f csv
 ```
+
+For more options, check `gtfs2lc --help`
 
 ## How it works (for contributors)
 

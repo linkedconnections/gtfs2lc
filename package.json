@@ -1,6 +1,6 @@
 {
   "name": "gtfs2lc",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Mapping script from gtfs to linked connnections",
   "main": "lib/gtfs-csv2lc.js",
   "bin": {
@@ -26,9 +26,10 @@
   "dependencies": {
     "commander": "^2.9.0",
     "fast-csv": "^0.6.0",
+    "jsonld-stream": "^1.0.3",
     "level": "^1.3.0",
     "moment": "^2.10.6",
-    "n3": "~0.4.0",
+    "n3": "^0.4.5",
     "through2": "^2.0.0",
     "unzip": "~0.1.9"
   }

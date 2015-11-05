@@ -1,0 +1,5 @@
+sample_feed
+node_modules
+.services
+.trips
+*.jsonstream
