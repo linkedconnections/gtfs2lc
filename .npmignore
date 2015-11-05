@@ -3,3 +3,4 @@ node_modules
 .services
 .trips
 *.jsonstream
+test
