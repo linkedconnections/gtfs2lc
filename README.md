@@ -1,4 +1,4 @@
-# Guide: GTFS → Linked Connections
+# GTFS to Linked Connections
 
 Transforms a GTFS file towards a directed acyclic graph of "connections".
 
