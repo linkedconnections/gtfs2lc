@@ -16,10 +16,11 @@ npm install -g gtfs2lc
 First, __unzip__ your GTFS file to a place on your disk using e.g., `unzip gtfs.zip /tmp`
 
 Now, we need to make sure that a couple of files are ordered in a specific fashion, not required by the GTFS spec. You can do these orderings through bash as follows:
- * __stop_times.txt__ must be ordered by `trip_id` and `stop_sequence`. You can do this using this command: `{ head -n 1 stop_times.txt ; tail -n +2 stop_times.txt | sort; } > stop_times2.txt ; mv stop_times2.txt stop_times.txt`. Mind that the number of the columns are also not standardized by GTFS and you might need to tweak the sort command.
- * __trips.txt__ must be ordered by `trip_id`.  You can do this using this command: `{ head -n 1 trips.txt ; tail -n +2 trips.txt | sort; } > trips2.txt ; mv trips2.txt trips.txt`.
- * __calendar.txt__ must be ordered by `service_id`.  You can do this using this command: `{ head -n 1 calendar.txt ; tail -n +2 calendar.txt | sort; } > calendar2.txt ; mv calendar2.txt calendar.txt`.
- * __calendar_dates.txt__ must be ordered by `service_id`.  You can do this using this command: `{ head -n 1 calendar_dates.txt ; tail -n +2 calendar_dates.txt | sort; } > calendar_dates2.txt ; mv calendar_dates2.txt calendar_dates.txt`.
+ * __stop_times.txt__ must be ordered by `trip_id` and `stop_sequence`. Mind that the number of the columns are also not standardized by GTFS and you might need to tweak the sort command in this repo.
+ * __calendar.txt__ must be ordered by `service_id`.
+ * __calendar_dates.txt__ must be ordered by `service_id`.
+ 
+We've enclosed a bash script which ensures this for you. It isn't perfect however and may not return the desired result.
 
 If you've ensured this, you can install this library using: `npm install -g gtfs2lc` and use it as follows:
 

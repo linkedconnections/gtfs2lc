@@ -4,7 +4,8 @@
   "description": "Mapping script from gtfs to linked connnections",
   "main": "lib/gtfs-csv2lc.js",
   "bin": {
-    "gtfs2lc": "./bin/gtfs2lc.js"
+    "gtfs2lc": "./bin/gtfs2lc.js",
+    "gtfs2lc-sort": "./bin/gtfs2lc-sort.sh"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
