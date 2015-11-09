@@ -3,7 +3,23 @@
 var program = require('commander'),
     gtfs2lc = require('../lib/gtfs2lc.js'),
     N3 = require('n3'),
-    jsonldstream = require('jsonld-stream');
+    jsonldstream = require('jsonld-stream'),
+    fs = require('fs');
+
+//ty http://www.geedew.com/remove-a-directory-that-is-not-empty-in-nodejs/
+var deleteFolderRecursive = function(path) {
+  if( fs.existsSync(path) ) {
+    fs.readdirSync(path).forEach(function(file,index){
+      var curPath = path + "/" + file;
+      if(fs.lstatSync(curPath).isDirectory()) { // recurse
+        deleteFolderRecursive(curPath);
+      } else { // delete file
+        fs.unlinkSync(curPath);
+      }
+    });
+    fs.rmdirSync(path);
+  }
+};
 
 console.error("GTFS to linked connections converter use --help to discover more functions");
 
@@ -24,7 +40,9 @@ var mapper = new gtfs2lc.Connections({
   startDate : program.startDate,
   endDate : program.endDate
 });
+var resultStream = null;
 mapper.resultStream(program.path, function (stream) {
+  resultStream = stream;
   if (!program.format || program.format === "json") {
     stream.on('data', function (connection) {
       console.log(JSON.stringify(connection));
@@ -61,4 +79,24 @@ mapper.resultStream(program.path, function (stream) {
     }
     stream.pipe(process.stdout);
   }
+  stream.on('end', function () {
+    //clean up the leveldb
+    deleteFolderRecursive(program.path + "/.services");
+    deleteFolderRecursive(program.path + "/.trips");
+  });
 });
+
+process.on('SIGINT', function () {
+  console.error("\nCleaning up");
+  if (resultStream) {
+    resultStream.end();
+  } else {
+    deleteFolderRecursive(program.path + "/.services");
+    deleteFolderRecursive(program.path + "/.trips");
+  }
+  process.exit(0);
+});
+
+
+
+                 

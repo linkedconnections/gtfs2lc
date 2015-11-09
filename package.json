@@ -1,7 +1,7 @@
 {
   "name": "gtfs2lc",
-  "version": "0.3.0",
-  "description": "Mapping script from gtfs to linked connnections",
+  "version": "0.4.0",
+  "description": "Mapping script from gtfs to linked connections",
   "main": "lib/gtfs-csv2lc.js",
   "bin": {
     "gtfs2lc": "./bin/gtfs2lc.js",
@@ -31,7 +31,6 @@
     "level": "^1.3.0",
     "moment": "^2.10.6",
     "n3": "^0.4.5",
-    "through2": "^2.0.0",
-    "unzip": "~0.1.9"
+    "through2": "^2.0.0"
   }
 }
