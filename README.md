@@ -15,17 +15,17 @@ npm install -g gtfs2lc
 
 First, __unzip__ your GTFS file to a place on your disk using e.g., `unzip gtfs.zip /tmp`
 
-Now, we need to make sure that a couple of files are ordered in a specific fashion, not required by the GTFS spec. You can do these orderings through bash as follows:
+Now, we need to make sure that a couple of files are ordered in a specific fashion, not required by the GTFS spec:
  * __stop_times.txt__ must be ordered by `trip_id` and `stop_sequence`. Mind that the number of the columns are also not standardized by GTFS and you might need to tweak the sort command in this repo.
  * __calendar.txt__ must be ordered by `service_id`.
  * __calendar_dates.txt__ must be ordered by `service_id`.
  
-We've enclosed a bash script which ensures this for you. It isn't perfect however and may not return the desired result.
+We've enclosed a bash script which ensures this for you. It isn't perfect however and may not return the desired result. You can run this bash script using `gtfs2lc-sort $pathname`.
 
-If you've ensured this, you can install this library using: `npm install -g gtfs2lc` and use it as follows:
+If you've ensured this, you can use this tool on the command line as follows:
 
 ```bash
-gtfs2lc -p /path/to/extracted/gtfs -f csv
+gtfs2lc -p /path/to/extracted/gtfs -f csv --startDate 20151101  -e 20160101
 ```
 
 For more options, check `gtfs2lc --help`
