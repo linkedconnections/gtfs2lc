@@ -29,6 +29,7 @@ program
   .option('-f, --format <format>', 'Format of the output. Possibilities: csv, ntriples, turtle, json or jsonld (default: json)')
   .option('-s, --startDate <startDate>', 'startDate in YYYYMMDD format')
   .option('-e, --endDate <endDate>', 'endDate in YYYYMMDD format')
+  .option('-S, --store <store>', 'store type: LevelStore (uses your harddisk - for if you run out of RAM) or MemStore (default)')
   .parse(process.argv);
 
 if (!program.path) {
@@ -38,7 +39,8 @@ if (!program.path) {
 
 var mapper = new gtfs2lc.Connections({
   startDate : program.startDate,
-  endDate : program.endDate
+  endDate : program.endDate,
+  store : program.store
 });
 var resultStream = null;
 mapper.resultStream(program.path, function (stream) {
