@@ -11,13 +11,19 @@ program
   .version('0.3.0')
   .option('-p, --path <path>', 'Path to sorted GTFS files (default: ./)')
   .option('-f, --format <format>', 'Format of the output. Possibilities: csv, ntriples, turtle, json or jsonld (default: json)')
+  .option('-s, --startDate <startDate>', 'startDate in YYYYMMDD format')
+  .option('-e, --endDate <endDate>', 'endDate in YYYYMMDD format')
   .parse(process.argv);
 
 if (!program.path) {
-  program.path = './';
+  console.error('Give a path using the -p option');
+  process.exit();
 }
 
-var mapper = new gtfs2lc.Connections();
+var mapper = new gtfs2lc.Connections({
+  startDate : program.startDate,
+  endDate : program.endDate
+});
 mapper.resultStream(program.path, function (stream) {
   if (!program.format || program.format === "json") {
     stream.on('data', function (connection) {
