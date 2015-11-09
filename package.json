@@ -1,8 +1,8 @@
 {
   "name": "gtfs2lc",
-  "version": "0.4.0",
-  "description": "Mapping script from gtfs to linked connections",
-  "main": "lib/gtfs-csv2lc.js",
+  "version": "0.5.0",
+  "description": "Mapping script from gtfs to (linked) connections",
+  "main": "lib/gtfs2lc.js",
   "bin": {
     "gtfs2lc": "./bin/gtfs2lc.js",
     "gtfs2lc-sort": "./bin/gtfs2lc-sort.sh"
