@@ -13,7 +13,7 @@ npm install -g gtfs2lc
 
 ## Use it
 
-First, __unzip__ your GTFS file to a place on your disk using e.g., `unzip gtfs.zip /tmp`
+First, __unzip__ your GTFS file to a place on your disk using e.g., `unzip gtfs.zip -d /tmp`
 
 Now, we need to make sure that a couple of files are ordered in a specific fashion, not required by the GTFS spec:
  * __stop_times.txt__ must be ordered by `trip_id` and `stop_sequence`. Mind that the number of the columns are also not standardized by GTFS and you might need to tweak the sort command in this repo.
