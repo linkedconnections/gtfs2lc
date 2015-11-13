@@ -25,7 +25,7 @@ We've enclosed a bash script which ensures this for you. It isn't perfect howeve
 If you've ensured this, you can use this tool on the command line as follows:
 
 ```bash
-gtfs2lc -p /path/to/extracted/gtfs -f csv --startDate 20151101  -e 20160101
+gtfs2lc /path/to/extracted/gtfs -f csv --startDate 20151101  -e 20160101
 ```
 
 For more options, check `gtfs2lc --help`
