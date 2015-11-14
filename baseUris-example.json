@@ -1,0 +1,5 @@
+{
+  "stops" : "http://data.gtfs.org/example/stops/",
+  "connections" : "http://example/linkedconnections.org/connections/",
+  "trips" : "http://data.gtfs.org/example/trips/"
+}
