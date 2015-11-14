@@ -8,8 +8,8 @@ var program = require('commander'),
 
 //ty http://www.geedew.com/remove-a-directory-that-is-not-empty-in-nodejs/
 var deleteFolderRecursive = function(path) {
-  if( fs.existsSync(path) ) {
-    fs.readdirSync(path).forEach(function(file,index){
+  if (fs.existsSync(path)) {
+    fs.readdirSync(path).forEach(function (file,index){
       var curPath = path + "/" + file;
       if(fs.lstatSync(curPath).isDirectory()) { // recurse
         deleteFolderRecursive(curPath);
