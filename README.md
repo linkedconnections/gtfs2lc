@@ -28,6 +28,12 @@ If you've ensured this, you can use this tool on the command line as follows:
 gtfs2lc /path/to/extracted/gtfs -f csv --startDate 20151101  -e 20160101
 ```
 
+You also can load the data into mongodb in extended json-ld format as follows:
+
+```bash
+gtfs2lc /path/to/extracted/gtfs -f mongold -b baseUris.json | mongoimport -c myconnections
+```
+
 For more options, check `gtfs2lc --help`
 
 ## How it works (for contributors)
