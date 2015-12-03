@@ -2,6 +2,7 @@
 
 var program = require('commander'),
     gtfs2lc = require('../lib/gtfs2lc.js'),
+    MongoStream = require('../lib/Connections2Mongo.js'),
     N3 = require('n3'),
     jsonldstream = require('jsonld-stream'),
     fs = require('fs');
@@ -24,16 +25,23 @@ var deleteFolderRecursive = function(path) {
 console.error("GTFS to linked connections converter use --help to discover more functions");
 
 program
-  .version('0.3.0')
-  .option('-p, --path <path>', 'Path to sorted GTFS files (default: ./)')
-  .option('-f, --format <format>', 'Format of the output. Possibilities: csv, ntriples, turtle, json or jsonld (default: json)')
+  .option('-f, --format <format>', 'Format of the output. Possibilities: csv, ntriples, turtle, json, jsonld (default: json), mongo (extended JSON format to be used with mongoimport) or mongold')
   .option('-s, --startDate <startDate>', 'startDate in YYYYMMDD format')
   .option('-e, --endDate <endDate>', 'endDate in YYYYMMDD format')
+  .option('-b, --baseUris <baseUris>', 'path to a file that describes the baseUris in json')
   .option('-S, --store <store>', 'store type: LevelStore (uses your harddisk - for if you run out of RAM) or MemStore (default)')
+  .option('-h --host [host]', 'host of a mongodb instance (default: localhost)')
+  .option('-d --db [db]', 'database name within the mongodb instance (default: standard db)')
+  .option('-c --collection [collection]', 'collection of mongodb (default: connections)')
+  .option('--port', 'port of the mongodb (default: 27017)')
+  .arguments('<path>', 'Path to sorted GTFS files')
+  .action(function (path) {
+    program.path = path;
+  })
   .parse(process.argv);
 
 if (!program.path) {
-  console.error('Give a path using the -p option');
+  console.error('Please provide a path to the extracted (and sorted using gtfs2lc-sort) GTFS folder as the first argument');
   process.exit();
 }
 
@@ -42,11 +50,21 @@ var mapper = new gtfs2lc.Connections({
   endDate : program.endDate,
   store : program.store
 });
+
+var baseUris = null;
+if (program.baseUris) {
+  baseUris = JSON.parse(fs.readFileSync(program.baseUris, 'utf-8'));
+}
+
 var resultStream = null;
 mapper.resultStream(program.path, function (stream) {
   resultStream = stream;
   if (!program.format || program.format === "json") {
     stream.on('data', function (connection) {
+      console.log(JSON.stringify(connection));
+    });
+  } else if (program.format === 'mongo') {
+    stream.pipe(new MongoStream()).on('data', function (connection) {
       console.log(JSON.stringify(connection));
     });
   } else if (program.format === 'csv') {
@@ -57,13 +75,13 @@ mapper.resultStream(program.path, function (stream) {
       console.log(count + ',' + connection["departureStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"]);
       count ++;
     });
-  } else if (['ntriples','turtle','jsonld'].indexOf(program.format) > -1) {
-    stream = stream.pipe(new gtfs2lc.Connections2Triples()); //TODO: add configurable base uris here.
+  } else if (['ntriples','turtle','jsonld','mongold'].indexOf(program.format) > -1) {
+    stream = stream.pipe(new gtfs2lc.Connections2Triples(baseUris));
     if (program.format === 'ntriples') {
       stream = stream.pipe(new N3.StreamWriter({ format : 'N-Triples'}));
     } else if (program.format === 'turtle') {
       stream = stream.pipe(new N3.StreamWriter({ prefixes: { lc: 'http://semweb.mmlab.be/ns/linkedconnections#', gtfs : 'http://vocab.gtfs.org/terms#', xsd: 'http://www.w3.org/2001/XMLSchema#' } }));
-    } else if (program.format === 'jsonld') {
+    } else if (program.format === 'jsonld' || program.format === 'mongold') {
       var context = {
         '@context' : {
           lc: 'http://semweb.mmlab.be/ns/linkedconnections#',
@@ -77,7 +95,14 @@ mapper.resultStream(program.path, function (stream) {
           arrivalTime : { '@type' : 'xsd:dateTime', '@id' : 'lc:arrivalTime' },
         }
       };
-      stream = stream.pipe(new jsonldstream.TriplesToJSONLDStream(context)).pipe(new jsonldstream.Serializer());
+      //convert triples stream to jsonld stream
+      stream = stream.pipe(new jsonldstream.TriplesToJSONLDStream(context));
+      //prepare the output
+      if (program.format === 'mongold') {
+        //convert JSONLD Stream to MongoDB Stream
+        stream = stream.pipe(new MongoStream());
+      }
+      stream = stream.pipe(new jsonldstream.Serializer());
     }
     stream.pipe(process.stdout);
   }
@@ -98,7 +123,3 @@ process.on('SIGINT', function () {
   }
   process.exit(0);
 });
-
-
-
-                 
