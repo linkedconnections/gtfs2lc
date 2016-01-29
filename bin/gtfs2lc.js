@@ -69,10 +69,10 @@ mapper.resultStream(program.path, function (stream) {
     });
   } else if (program.format === 'csv') {
     //print header
-    console.log('"id","departureStop","departureTime","arrivalStop","arrivalTime","trip"');
+    console.log('"id","departureStop","departureTime","arrivalStop","arrivalTime","trip","route"');
     var count = 0;
     stream.on('data', function (connection) {
-      console.log(count + ',' + connection["departureStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"]);
+      console.log(count + ',' + connection["departureStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"] + ',' + connection["route"]);
       count ++;
     });
   } else if (['ntriples','turtle','jsonld','mongold'].indexOf(program.format) > -1) {
