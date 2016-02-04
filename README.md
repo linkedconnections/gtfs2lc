@@ -34,6 +34,8 @@ You also can load the data into mongodb in extended json-ld format as follows:
 gtfs2lc /path/to/extracted/gtfs -f mongold -b baseUris.json | mongoimport -c myconnections
 ```
 
+Mind that only MongoDB starting version 2.6 is supported.
+
 For more options, check `gtfs2lc --help`
 
 ## How it works (for contributors)
