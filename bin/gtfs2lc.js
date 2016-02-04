@@ -5,6 +5,7 @@ var program = require('commander'),
     MongoStream = require('../lib/Connections2Mongo.js'),
     N3 = require('n3'),
     jsonldstream = require('jsonld-stream'),
+    Connections2JSONLD = require('../lib/Connections2JSONLD.js'),
     fs = require('fs');
 
 //ty http://www.geedew.com/remove-a-directory-that-is-not-empty-in-nodejs/
@@ -30,10 +31,6 @@ program
   .option('-e, --endDate <endDate>', 'endDate in YYYYMMDD format')
   .option('-b, --baseUris <baseUris>', 'path to a file that describes the baseUris in json')
   .option('-S, --store <store>', 'store type: LevelStore (uses your harddisk - for if you run out of RAM) or MemStore (default)')
-  .option('-h --host [host]', 'host of a mongodb instance (default: localhost)')
-  .option('-d --db [db]', 'database name within the mongodb instance (default: standard db)')
-  .option('-c --collection [collection]', 'collection of mongodb (default: connections)')
-  .option('--port', 'port of the mongodb (default: 27017)')
   .arguments('<path>', 'Path to sorted GTFS files')
   .action(function (path) {
     program.path = path;
@@ -69,40 +66,40 @@ mapper.resultStream(program.path, function (stream) {
     });
   } else if (program.format === 'csv') {
     //print header
-    console.log('"id","departureStop","departureTime","arrivalStop","arrivalTime","trip"');
+    console.log('"id","departureStop","departureTime","arrivalStop","arrivalTime","trip","route"');
     var count = 0;
     stream.on('data', function (connection) {
-      console.log(count + ',' + connection["departureStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"]);
+      console.log(count + ',' + connection["departureStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"] + ',' + connection["route"]);
       count ++;
     });
-  } else if (['ntriples','turtle','jsonld','mongold'].indexOf(program.format) > -1) {
+  } else if ([,'jsonld','mongold'].indexOf(program.format) > -1) {
+    var context = {
+      '@context' : {
+        lc: 'http://semweb.mmlab.be/ns/linkedconnections#',
+        gtfs : 'http://vocab.gtfs.org/terms#',
+        xsd: 'http://www.w3.org/2001/XMLSchema#',
+        trip : { '@type' : '@id', '@id' : 'gtfs:trip' },
+        Connection : 'lc:Connection',
+        departureTime : { '@type' : 'xsd:dateTime', '@id' : 'lc:departureTime' },
+        departureStop : { '@type' : '@id', '@id' : 'lc:departureStop' },
+        arrivalStop : { '@type' : '@id', '@id' : 'lc:arrivalStop' },
+        arrivalTime : { '@type' : 'xsd:dateTime', '@id' : 'lc:arrivalTime' },
+      }
+    };
+    //convert triples stream to jsonld stream
+    stream = stream.pipe(new Connections2JSONLD(baseUris, context));
+    //prepare the output
+    if (program.format === 'mongold') {
+      //convert JSONLD Stream to MongoDB Stream
+      stream = stream.pipe(new MongoStream());
+    }
+    stream = stream.pipe(new jsonldstream.Serializer()).pipe(process.stdout);
+  } else if (['ntriples','turtle'].indexOf(program.format) > -1) {
     stream = stream.pipe(new gtfs2lc.Connections2Triples(baseUris));
     if (program.format === 'ntriples') {
       stream = stream.pipe(new N3.StreamWriter({ format : 'N-Triples'}));
     } else if (program.format === 'turtle') {
       stream = stream.pipe(new N3.StreamWriter({ prefixes: { lc: 'http://semweb.mmlab.be/ns/linkedconnections#', gtfs : 'http://vocab.gtfs.org/terms#', xsd: 'http://www.w3.org/2001/XMLSchema#' } }));
-    } else if (program.format === 'jsonld' || program.format === 'mongold') {
-      var context = {
-        '@context' : {
-          lc: 'http://semweb.mmlab.be/ns/linkedconnections#',
-          gtfs : 'http://vocab.gtfs.org/terms#',
-          xsd: 'http://www.w3.org/2001/XMLSchema#',
-          trip : { '@type' : '@id', '@id' : 'gtfs:trip' },
-          Connection : 'lc:Connection',
-          departureTime : { '@type' : 'xsd:dateTime', '@id' : 'lc:departureTime' },
-          departureStop : { '@type' : '@id', '@id' : 'lc:departureStop' },
-          arrivalStop : { '@type' : '@id', '@id' : 'lc:arrivalStop' },
-          arrivalTime : { '@type' : 'xsd:dateTime', '@id' : 'lc:arrivalTime' },
-        }
-      };
-      //convert triples stream to jsonld stream
-      stream = stream.pipe(new jsonldstream.TriplesToJSONLDStream(context));
-      //prepare the output
-      if (program.format === 'mongold') {
-        //convert JSONLD Stream to MongoDB Stream
-        stream = stream.pipe(new MongoStream());
-      }
-      stream = stream.pipe(new jsonldstream.Serializer());
     }
     stream.pipe(process.stdout);
   }
