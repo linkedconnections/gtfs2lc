@@ -3,3 +3,5 @@ logs
 node_modules
 .services
 .trips
+/.project
+/.idea/*
