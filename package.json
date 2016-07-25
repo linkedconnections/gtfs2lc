@@ -30,6 +30,7 @@
     "jsonld-stream": "^1.0.3",
     "level": "^1.4.0",
     "moment": "^2.10.6",
+    "moment-timezone": "^0.5.4",
     "n3": "^0.4.5",
     "through2": "^2.0.0"
   }
