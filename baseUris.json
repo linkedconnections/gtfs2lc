@@ -1,0 +1,6 @@
+{
+  "stops" : "http://irail.be/stations/NMBS/00",
+  "connections" : "http://irail.be/connections/",
+  "trips" : "http://irail.be/vehicle/",
+  "routes" : "http://irail.be/vehicle/"
+}
