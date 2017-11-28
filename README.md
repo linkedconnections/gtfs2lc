@@ -1,5 +1,7 @@
 # GTFS to Linked Connections
 
+[![Build Status](https://travis-ci.org/linkedconnections/gtfs2lc.svg?branch=master)](https://travis-ci.org/linkedconnections/gtfs2lc)
+
 Transforms a GTFS file towards a directed acyclic graph of "connections".
 
 A connection is the combination of a departure and its successive arrival of the same trip. 
