@@ -32,7 +32,8 @@
     "moment": "^2.10.6",
     "moment-timezone": "^0.5.4",
     "n3": "^0.4.5",
-    "through2": "^2.0.0"
+    "through2": "^2.0.0",
+    "uri-templates": "^0.2.0"
   },
   "devDependencies": {
     "mocha": "^4.0.1"
