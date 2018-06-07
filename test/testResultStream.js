@@ -12,6 +12,8 @@ describe('Testing whether result contains certain objects (regression tests)', f
       mapper.resultStream('./test/sample-feed', (stream) => {
         if (options.format && options.format === "rdf") {
           stream = stream.pipe(new gtfs2lc.Connections2Triples({}));
+        } else if(options.format && options.format === 'jsonld') {
+          stream = stream.pipe(new gtfs2lc.Connections2JSONLD());
         }
         var connections = [];
         stream.on('data', connection => {
@@ -31,6 +33,14 @@ describe('Testing whether result contains certain objects (regression tests)', f
     var connections = await lcstreamToArray();
     assert.equal(connections[0]['arrivalStop'],'NANAA');
     assert.equal(connections[0]['headsign'],'City');
+  });
+
+  it('JSON-LD Stream should contain Connections', async () => {
+    var triples = await lcstreamToArray({
+      format : 'jsonld'
+    });
+    console.log(triples[0]);
+    assert.equal(triples[0]['@type'],'Connection');
   });
 
   it('RDF Stream should contain Connections', async () => {
