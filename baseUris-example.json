@@ -1,6 +1,6 @@
 {
-  "stops" : "http://data.gtfs.org/example/stops/{stop_id}",
-  "routes" : "http://data.gtfs.org/example/routes/{routes.route_id}",
-  "trips" : "http://data.gtfs.org/example/trips/{trips.trip_id}",
-  "connections" : "http://example/linkedconnections.org/connections/{connection.departureTime(YYYYMMDD)}{connection.departureStop}{trips.trip_id}"
+  "stop": "http://irail.be/stations/NMBS/00{connection.departureStop}/",
+  "connection": "http://irail.be/connections/{connection.departureTime(YYYYMMDD)}/{connection.departureStop}/{routes.route_short_name}{trips.trip_short_name}",
+  "trip": "http://irail.be/vehicle/{routes.route_short_name}{trips.trip_short_name}/{connection.departureTime(YYYYMMDD)}",
+  "route": "http://irail.be/routes/{routes.route_short_name}{trips.trip_short_name}"
 }
