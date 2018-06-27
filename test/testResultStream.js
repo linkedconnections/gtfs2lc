@@ -3,7 +3,7 @@ const assert = require('assert');
 const N3 = require('n3');
 
 describe('Testing whether result contains certain objects (regression tests)', function () {
-  this.timeout(5000);
+  this.timeout(15000);
   var lcstreamToArray = function (options) {
     if (!options)
       options = {};
