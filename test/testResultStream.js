@@ -3,7 +3,7 @@ const assert = require('assert');
 const N3 = require('n3');
 
 describe('Testing whether result contains certain objects (regression tests)', function () {
-  this.timeout(5000);
+  this.timeout(15000);
   var lcstreamToArray = function (options) {
     if (!options)
       options = {};
@@ -31,8 +31,8 @@ describe('Testing whether result contains certain objects (regression tests)', f
 
   it('Stream should contain certain things', async () => {
     var connections = await lcstreamToArray();
-    assert.equal(connections[0]['arrivalStop'],'NANAA');
-    assert.equal(connections[0]['headsign'],'City');
+    assert.equal(connections[0]['arrivalStop']['gtfs:parentStop'],'8400526');
+    assert.equal(connections[0]['headsign'],'Roosendaal (nl)');
   });
 
   it('JSON-LD Stream should contain Connections', async () => {
