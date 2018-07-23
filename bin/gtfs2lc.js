@@ -69,7 +69,7 @@ mapper.resultStream(program.path, function (stream) {
     console.log('"id","departureStop","departureTime","arrivalStop","arrivalTime","trip","route"');
     var count = 0;
     stream.on('data', function (connection) {
-      console.log(count + ',' + connection["departureStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"] + ',' + connection["route"]);
+      console.log(count + ',' + connection["departureStop"]["gtfs:parentStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"]["gtfs:parentStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"] + ',' + connection["route"]);
       count ++;
     });
   } else if ([,'jsonld','mongold'].indexOf(program.format) > -1) {
