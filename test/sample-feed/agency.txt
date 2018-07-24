@@ -1,2 +1,2 @@
-agency_id,agency_name,agency_url,agency_timezone
-DTA,Demo Transit Authority,http://google.com,America/Los_Angeles
+agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone
+NMBS/SNCB,NMBS/SNCB,http://www.belgianrail.be/,Europe/Brussels,fr,
