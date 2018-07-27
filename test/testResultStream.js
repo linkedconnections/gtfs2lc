@@ -31,8 +31,8 @@ describe('Testing whether result contains certain objects (regression tests)', f
 
   it('Stream should contain certain things', async () => {
     var connections = await lcstreamToArray();
-    assert.equal(connections[0]['arrivalStop']['gtfs:parentStop'],'8400526');
-    assert.equal(connections[0]['headsign'],'Roosendaal (nl)');
+    assert.equal(connections[0]['arrivalStop']['gtfs:parentStop'],'8895232');
+    assert.equal(connections[0]['headsign'],'Ostende');
   });
 
   it('JSON-LD Stream should contain Connections', async () => {
