@@ -1,6 +1,6 @@
 {
-  "stop": "http://irail.be/stations/NMBS/00{connection.departureStop}",
-  "connection": "http://irail.be/connections/{connection.departureTime(YYYYMMDD)}/{connection.departureStop}/{routes.route_short_name}{trips.trip_short_name}",
-  "trip": "http://irail.be/vehicle/{routes.route_short_name}{trips.trip_short_name}/{connection.departureTime(YYYYMMDD)}",
-  "route": "http://irail.be/routes/{routes.route_short_name}{trips.trip_short_name}"
+  "stop": "https://data.delijn.be/stops/{stop_id}",
+  "connection": "https://data.delijn.be/connections/{routes.route_long_name}/{connection.departureTime(YYYYMMDDTHHmm)}/{connection.departureStop}/",
+  "trip": "https://data.delijn.be/trips/{routes.route_long_name}/{connection.departureTime(YYYYMMDDTHHmm)}",
+  "route": "https://data.delijn.be/routes/{routes.route_long_name}"
 }
