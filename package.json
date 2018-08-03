@@ -25,12 +25,13 @@
     "url": "https://github.com/LinkedConnections/gtfs2lc/issues"
   },
   "dependencies": {
-    "commander": "^2.15.1",
+    "commander": "^2.16.0",
     "fast-csv": "^0.6.0",
+    "hoek": "^5.0.3",
     "jsonld-stream": "^1.0.3",
     "level": "^4.0.0",
     "moment": "^2.22.2",
-    "moment-timezone": "^0.5.17",
+    "moment-timezone": "^0.5.21",
     "n3": "^0.4.5",
     "through2": "^2.0.0",
     "uri-templates": "^0.2.0"
