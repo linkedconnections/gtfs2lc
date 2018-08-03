@@ -50,7 +50,7 @@ describe('Testing whether result contains certain objects (regression tests)', f
 
   it('Stream should contain certain things', async () => {
     let connections = await lcstreamToArray({format: 'jsonld'});
-    assert.equal(connections['Antwerpen'][0]['arrivalStop'],'https://data.delijn.be/stops/107814');
-    assert.equal(connections['Antwerpen'][0]['direction'],'Puurs - Brussel');
+    assert.equal(connections['Antwerpen'][1]['arrivalStop'],'https://data.delijn.be/stops/107814');
+    assert.equal(connections['Antwerpen'][1]['direction'],'Puurs - Brussel');
   });
 });
