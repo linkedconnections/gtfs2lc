@@ -31,17 +31,22 @@ describe('Testing whether result contains certain objects (regression tests)', f
 
   it('Stream should contain certain things', async () => {
     var connections = await lcstreamToArray();
-    assert.equal(connections[0]['arrivalStop'],'BEATTY_AIRPORT');
-    assert.equal(connections[0]['drop_off_type'], 1);
-    assert.equal(connections[0]['pickup_type'], 1);
-    assert.equal(connections[0]['headsign'],'Shuttle');
+    assert.equal(connections[0]['arrivalStop'],'AMV');
+    assert.equal(connections[0]['headsign'],'to Amargosa Valley');
+
+    //Retrieve the joiningtrip from the connections array for one specific day
+    let joiningtrip = connections.filter(connection => {
+      return connection.trip.route.route_id === 'joining_route' && connection.departureTime.format('YYYY-MM-DD') === '2007-12-16';
+    });
+    //The joining train should only show 1 connection for the joined part of the trip, which has a departure a D. Let’s check this.
+    console.log(joiningtrip.filter(connection => connection.departureStop === 'D'));
+    assert.equal(joiningtrip.filter(connection => connection.departureStop === 'D').length, 1);
   });
 
   it('JSON-LD Stream should contain Connections', async () => {
     var triples = await lcstreamToArray({
       format : 'jsonld'
     });
-    console.log(triples[0]);
     assert.equal(triples[0]['@type'],'Connection');
   });
 
@@ -51,4 +56,5 @@ describe('Testing whether result contains certain objects (regression tests)', f
     });
     assert.equal(triples[0].object,'http://semweb.mmlab.be/ns/linkedconnections#Connection');
   });
+
 });
