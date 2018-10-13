@@ -8,7 +8,7 @@
     "gtfs2lc-sort": "./bin/gtfs2lc-sort.sh"
   },
   "scripts": {
-    "test": "./node_modules/mocha/bin/mocha"
+    "test": "cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc-sort.sh test/sample-feed ; ./node_modules/mocha/bin/mocha"
   },
   "repository": {
     "type": "git",
