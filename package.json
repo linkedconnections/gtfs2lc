@@ -27,7 +27,7 @@
   "dependencies": {
     "commander": "^2.19.0",
     "fast-csv": "^0.6.0",
-    "jsonld-stream": "^1.0.3",
+    "jsonld-stream": "^1.0.4",
     "level": "^4.0.0",
     "moment": "^2.22.2",
     "moment-timezone": "^0.5.21",
