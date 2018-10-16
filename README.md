@@ -68,7 +68,7 @@ Now you can generate Linked Data in JSON-LD as follows:
 gtfs2lc /path/to/extracted/gtfs -f jsonld -b baseUris.json
 ```
 
-That’s it! Want to serve your Linked Connections of HTTP? Take a look at our work over here: [The Linked Connection’s server](https://github.com/julianrojas87/linked-connections-server) (WIP)
+That’s it! Want to serve your Linked Connections over HTTP? Take a look at our work over here: [The Linked Connection’s server](https://github.com/julianrojas87/linked-connections-server) (WIP)
 
 ### More options
 
