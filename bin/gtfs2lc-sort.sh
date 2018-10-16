@@ -12,6 +12,8 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
       sed 's/\r//' trips.txt > trips_unix.txt; mv trips_unix.txt trips.txt &
       sed 's/\r//' calendar.txt > calendar_unix.txt; mv calendar_unix.txt calendar.txt &
       sed 's/\r//' calendar_dates.txt > calendar_dates_unix.txt; mv calendar_dates_unix.txt calendar_dates.txt ;
+      sed 's/\r//' routes.txt > routes_unix.txt; mv routes_unix.txt routes.txt ;
+            
     } ;
     echo Removing UTF-8 artifacts in directory $1;
     {
@@ -19,6 +21,7 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
       sed '1s/^\xEF\xBB\xBF//' trips.txt > trips_unix.txt; mv trips_unix.txt trips.txt &
       sed '1s/^\xEF\xBB\xBF//' calendar.txt > calendar_unix.txt; mv calendar_unix.txt calendar.txt &
       sed '1s/^\xEF\xBB\xBF//' calendar_dates.txt > calendar_dates_unix.txt; mv calendar_dates_unix.txt calendar_dates.txt ;
+      sed '1s/^\xEF\xBB\xBF//' routes.txt > routes_unix.txt; mv routes_unix.txt routes.txt ;
     } ;
     ## Find the right numbers of the column keys needed
     TRIPID_TRIPS=`head -n1 trips.txt | tr "," "\n" | grep -n "trip_id"| cut -d: -f1`
