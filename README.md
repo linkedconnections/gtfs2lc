@@ -13,7 +13,7 @@ More information and live demo at https://linkedconnections.org
 
 ## Converting your GTFS to (linked) connections
 
-__Step 0: Installation__
+### Step 0: Installation
 
 Install it using the [Node Package Manager (npm)](https://www.npmjs.com/get-npm).
 
@@ -21,7 +21,7 @@ Install it using the [Node Package Manager (npm)](https://www.npmjs.com/get-npm)
 npm install -g gtfs2lc
 ```
 
-__Step 1: discover a GTFS file__
+### Step 1: discover a GTFS file
 
 If you haven’t yet picked a GTFS file you want to work with, different repositories exist. Our favourite ones:
  * [Transit.land’s feed registry](http://transit.land/feed-registry/)
@@ -31,11 +31,11 @@ Yet, you may also directly ask your local public transport authority for a copy.
 
 Mind that we have not tested our code with all GTFS files yet, and there are [known limitations](#not-yet-implemented).
 
-__Step 2: unzip your GTFS__
+### Step 2: unzip your GTFS
 
 You can use your favorite unzipper. E.g., `unzip gtfs.zip` should work fine.
 
-__Step 3: Order and clean your CSV files__
+### Step 3: Order and clean your CSV files
 
 We’ve enclosed a bash script which ensures this for you. You can run this bash script using `gtfs2lc-sort <path>`. Next to sorting, it also unifies newlines and removed UTF-8 artefacts.
 
@@ -44,7 +44,7 @@ If _step 4_ would not give the desired result, you might want to tweak the scrip
  * __calendar.txt__ must be ordered by `service_id`.
  * __calendar_dates.txt__ must be ordered by `service_id`.
 
-__Step 4: Generate connections!__
+### Step 4: Generate connections!
 
 Successfully finished the previous steps? Then you can now generate actual departure and arrival pairs (connections) as follows:
 
@@ -56,7 +56,7 @@ We support other formats such as `csv` as well.
 
 For _big_ GTFS files, your memory may not be sufficient. Luckily, we’ve implemented a way to use your harddisk instead of your RAM. You can enable this with an option: `gtfs2lc /path/to/extracted/gtfs -f json --store LevelStore`.
 
-__Step 5: Generate *Linked* Connections!__
+### Step 5: Generate *Linked* Connections!
 
 When you download a new GTFS file, all identifiers in there will might change and conflict with your previous export. Therefore, we need to think about a way to create global identifiers for the connections, trips, routes and stops in our system. As we are publishing our data on the Web, we will also use Web addresses for these global identifiers.
 
@@ -70,7 +70,7 @@ gtfs2lc /path/to/extracted/gtfs -f jsonld -b baseUris.json
 
 That’s it! Want to serve your Linked Connections of HTTP? Take a look at our work over here: [The Linked Connection’s server](https://github.com/julianrojas87/linked-connections-server) (WIP)
 
-__More options__
+### More options
 
 Next to the jsonld format, we’ve also implement the “`mongold`” format. It can be directly used by the command `mongoimport` as follows:
 
