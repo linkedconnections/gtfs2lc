@@ -31,15 +31,16 @@ describe('Testing whether result contains certain objects (regression tests)', f
 
   it('Stream should contain certain things', async () => {
     var connections = await lcstreamToArray();
-    assert.equal(connections[0]['arrivalStop'],'NANAA');
-    assert.equal(connections[0]['headsign'],'City');
+    assert.equal(connections[0]['arrivalStop'],'BEATTY_AIRPORT');
+    assert.equal(connections[0]['drop_off_type'], 1);
+    assert.equal(connections[0]['pickup_type'], 1);
+    assert.equal(connections[0]['headsign'],'Shuttle');
   });
 
   it('JSON-LD Stream should contain Connections', async () => {
     var triples = await lcstreamToArray({
       format : 'jsonld'
     });
-    console.log(triples[0]);
     assert.equal(triples[0]['@type'],'Connection');
   });
 
