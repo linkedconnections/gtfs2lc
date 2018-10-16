@@ -25,6 +25,7 @@
     "url": "https://github.com/LinkedConnections/gtfs2lc/issues"
   },
   "dependencies": {
+    "asynciterator": "^2.0.0",
     "commander": "^2.19.0",
     "fast-csv": "^0.6.0",
     "jsonld-stream": "^1.0.4",
