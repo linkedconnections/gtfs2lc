@@ -59,7 +59,7 @@ mapper.resultStream(program.path, function (stream) {
   if (!program.format || program.format === "json") {
     stream.on('data', function (connection) {
       console.log(JSON.stringify(connection));
-    });
+    })
   } else if (program.format === 'mongo') {
     stream.pipe(new MongoStream()).on('data', function (connection) {
       console.log(JSON.stringify(connection));
@@ -72,7 +72,7 @@ mapper.resultStream(program.path, function (stream) {
       console.log(count + ',' + connection["departureStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"] + ',' + connection["route"]);
       count ++;
     });
-  } else if ([,'jsonld','mongold'].indexOf(program.format) > -1) {
+  } else if (['jsonld','mongold'].indexOf(program.format) > -1) {
     var context = {
       '@context' : {
         lc: 'http://semweb.mmlab.be/ns/linkedconnections#',
@@ -103,7 +103,11 @@ mapper.resultStream(program.path, function (stream) {
     }
     stream.pipe(process.stdout);
   }
-  stream.on('end', function () {
+  stream.on('error', error => {
+    console.error(error);
+  });
+  stream.on('finish', function () {
+    console.error('Stream ended - everything should be fully converted!');
     //clean up the leveldb
     deleteFolderRecursive(program.path + "/.services");
     deleteFolderRecursive(program.path + "/.trips");
@@ -111,7 +115,7 @@ mapper.resultStream(program.path, function (stream) {
 });
 
 process.on('SIGINT', function () {
-  console.error("\nCleaning up");
+  console.error("\nSIGINT Received – Cleaning up");
   if (resultStream) {
     resultStream.end();
   } else {
