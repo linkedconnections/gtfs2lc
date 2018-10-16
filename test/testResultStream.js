@@ -41,7 +41,6 @@ describe('Testing whether result contains certain objects (regression tests)', f
     var triples = await lcstreamToArray({
       format : 'jsonld'
     });
-    console.log(triples[0]);
     assert.equal(triples[0]['@type'],'Connection');
   });
 

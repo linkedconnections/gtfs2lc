@@ -27,8 +27,6 @@ console.error("GTFS to linked connections converter use --help to discover more 
 
 program
   .option('-f, --format <format>', 'Format of the output. Possibilities: csv, ntriples, turtle, json, jsonld (default: json), mongo (extended JSON format to be used with mongoimport) or mongold')
-  .option('-s, --startDate <startDate>', 'startDate in YYYYMMDD format')
-  .option('-e, --endDate <endDate>', 'endDate in YYYYMMDD format')
   .option('-b, --baseUris <baseUris>', 'path to a file that describes the baseUris in json')
   .option('-S, --store <store>', 'store type: LevelStore (uses your harddisk - for if you run out of RAM) or MemStore (default)')
   .arguments('<path>', 'Path to sorted GTFS files')
@@ -66,10 +64,12 @@ mapper.resultStream(program.path, function (stream) {
     });
   } else if (program.format === 'csv') {
     //print header
-    console.log('"id","departureStop","departureTime","arrivalStop","arrivalTime","trip","route"');
+    console.error('The CSV output is not using a Linked Data format – jsonld is the preferred format.');
+    console.log('"id","departureStop","departureTime","arrivalStop","arrivalTime","trip","route","headsign"');
     var count = 0;
+    
     stream.on('data', function (connection) {
-      console.log(count + ',' + connection["departureStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"] + ',' + connection["route"]);
+      console.log(count + ',' + connection["departureStop"] + ',' + connection["departureTime"].toISOString() + ',' +  connection["arrivalStop"] + ',' +  connection["arrivalTime"].toISOString() + ',' + connection["trip"]["trip_id"] + ',' + connection.trip.route.route_id + ',"' + connection.headsign + '"');
       count ++;
     });
   } else if ([,'jsonld','mongold'].indexOf(program.format) > -1) {

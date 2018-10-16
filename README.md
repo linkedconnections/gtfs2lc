@@ -4,35 +4,75 @@
 
 [![NPM](https://nodei.co/npm/gtfs2lc.png)](https://npmjs.org/package/gtfs2lc)
 
-Transforms a GTFS file towards a directed acyclic graph of "connections".
+Transforms a GTFS file into a directed acyclic graph of actual _connections_.
 
-A connection is the combination of a departure and its successive arrival of the same trip. 
+A _connection_ is the combination of a departure and its successive arrival of the same trip. 
 Our goal is to retrieve a list of connections that is sorted by departure time, better known as a Directed Acyclic Graph. This way, routeplanning algorithms can be performed.
 
-## Install it
+More information and live demo at https://linkedconnections.org
 
-```
+## Converting your GTFS to (linked) connections
+
+### Step 0: Installation
+
+Install it using the [Node Package Manager (npm)](https://www.npmjs.com/get-npm).
+
+```bash
 npm install -g gtfs2lc
 ```
 
-## Use it
+### Step 1: discover a GTFS file
 
-First, __unzip__ your GTFS file to a place on your disk using e.g., `unzip gtfs.zip -d /tmp`
+If you haven’t yet picked a GTFS file you want to work with, different repositories exist. Our favourite ones:
+ * [Transit.land’s feed registry](http://transit.land/feed-registry/)
+ * [Transit Feeds](https://transitfeeds.com/)
 
-Now, we need to make sure that a couple of files are ordered in a specific fashion, not required by the GTFS spec:
- * __stop_times.txt__ must be ordered by `trip_id` and `stop_sequence`. Mind that the number of the columns are also not standardized by GTFS and you might need to tweak the sort command in this repo.
+Yet, you may also directly ask your local public transport authority for a copy.
+
+Mind that we have not tested our code with all GTFS files yet, and there are [known limitations](#not-yet-implemented).
+
+### Step 2: unzip your GTFS
+
+You can use your favorite unzipper. E.g., `unzip gtfs.zip` should work fine.
+
+### Step 3: Order and clean your CSV files
+
+We’ve enclosed a bash script which ensures this for you. You can run this bash script using `gtfs2lc-sort <path>`. Next to sorting, it also unifies newlines and removed UTF-8 artefacts.
+
+If _step 4_ would not give the desired result, you might want to tweak the script manually. In order for our script to work:
+ * __stop_times.txt__ must be ordered by `trip_id` and `stop_sequence`.
  * __calendar.txt__ must be ordered by `service_id`.
  * __calendar_dates.txt__ must be ordered by `service_id`.
- 
-We've enclosed a bash script which ensures this for you. It isn't perfect however and may not return the desired result. You can run this bash script using `gtfs2lc-sort $pathname`.
 
-If you've ensured this, you can use this tool on the command line as follows:
+### Step 4: Generate connections!
+
+Successfully finished the previous steps? Then you can now generate actual departure and arrival pairs (connections) as follows:
 
 ```bash
-gtfs2lc /path/to/extracted/gtfs -f csv --startDate 20151101  -e 20160101
+gtfs2lc /path/to/extracted/gtfs -f json
 ```
 
-You also can load the data into mongodb in extended json-ld format as follows:
+We support other formats such as `csv` as well.
+
+For _big_ GTFS files, your memory may not be sufficient. Luckily, we’ve implemented a way to use your harddisk instead of your RAM. You can enable this with an option: `gtfs2lc /path/to/extracted/gtfs -f json --store LevelStore`.
+
+### Step 5: Generate *Linked* Connections!
+
+When you download a new GTFS file, all identifiers in there will might change and conflict with your previous export. Therefore, we need to think about a way to create global identifiers for the connections, trips, routes and stops in our system. As we are publishing our data on the Web, we will also use Web addresses for these global identifiers.
+
+See `baseUris-example.json` for an example or URI templates of what a stable identifier strategy could look like. Copy it and edit it to your likings.
+
+Now you can generate Linked Data in JSON-LD as follows:
+
+```bash
+gtfs2lc /path/to/extracted/gtfs -f jsonld -b baseUris.json
+```
+
+That’s it! Want to serve your Linked Connections of HTTP? Take a look at our work over here: [The Linked Connection’s server](https://github.com/julianrojas87/linked-connections-server) (WIP)
+
+### More options
+
+Next to the jsonld format, we’ve also implement the “`mongold`” format. It can be directly used by the command `mongoimport` as follows:
 
 ```bash
 gtfs2lc /path/to/extracted/gtfs -f mongold -b baseUris.json | mongoimport -c myconnections
@@ -58,4 +98,4 @@ Furthermore, also `frequencies.txt` is not supported at this time. We hope to su
 
 ## Authors
 
-Pieter Colpaert - pieter.colpaert@ugent.be
+Pieter Colpaert <pieter.colpaert@ugent.be>
