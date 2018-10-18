@@ -44,7 +44,6 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
     
     ## Now launch the nodejs script that can join connections that are the same but which should have multiple trips
     $CURDIR/joinconnections.js > connections2.txt && mv connections2.txt connections.txt;
-    exit
     ## Finally sort all files in  order to be processed for gtfs2lc
     echo Sorting files in directory $1;
     { head -n 1 connections.txt ; tail -n +2 connections.txt | sort -t , -k ${TRIPID_CONNECTIONS}d,${TRIPID_CONNECTIONS} -k ${TRIPID_CONNECTIONS}d,${TRIPID_CONNECTIONS} ; } > connections2.txt ; mv connections2.txt connections.txt &
