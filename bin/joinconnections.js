@@ -10,30 +10,49 @@ var connectionRules = fs.createReadStream('connections.txt', { encoding: 'utf8',
 
 var previous = null;
 
-connectionRules.on('data', connectionRule => {  
+connectionRules.on('data', connectionRule => {
+  connectionRule.will_split_from = "";
+  connectionRule.joined_with = "";
   if (previous) {
-    //Check if the common factors are indeed the same
+    //Check if arrivaltime, departuretime, departurestop and arrival stop are the same. Then there’s a possibility this is a joined train.
     if (connectionRule.arrival_time === previous.arrival_time && connectionRule.departure_time === previous.departure_time && connectionRule.departure_stop === previous.departure_stop && connectionRule.arrival_stop === previous.arrival_stop) {
-      console.error('WARNING: Joining 2 trips from the GTFS that I believe are joining into one: ' + previous.trip_id + " and " + connectionRule.trip_id);
       mergedConnectionRule = null;
       //See the documentation: https://support.google.com/transitpartners/answer/7084064?hl=en
+
+      //### JOINING TRAINS
       //If the pickup type is 1 while the other isn’t merge it with the connectionRule where the pickupType was 0
       if (connectionRule.pickup_type === "1" && previous.pickup_type !== "1") {
         mergedConnectionRule = previous;
-        mergedConnectionRule.trip_id += separator + connectionRule.trip_id;
+        if (mergedConnectionRule.joined_with !== '')
+          mergedConnectionRule.joined_with += separator
+        mergedConnectionRule.joined_with += connectionRule.trip_id;
       } else if (previous.pickup_type === "1" && connectionRule.pickup_type !== "1") {
         mergedConnectionRule = connectionRule;
-        mergedConnectionRule.trip_id += separator + previous.trip_id;
+        if (mergedConnectionRule.joined_with !== '')
+          mergedConnectionRule.joined_with += separator
+        mergedConnectionRule.joined_with += previous.trip_id;
       }
+      //### SPLITTING TRAINS
       //If the drop-off type is different, then merge it with the one where dropOffType is 0
-      if (connectionRule.drop_off_type === "1" && previous.drop_off_type !== "1") {
+      else if (connectionRule.drop_off_type === "1" && previous.drop_off_type !== "1") {
         mergedConnectionRule = previous;
-        mergedConnectionRule.trip_id += separator + connectionRule.trip_id;
+        if (mergedConnectionRule.will_split_from !== '')
+          mergedConnectionRule.will_split_from += separator
+        mergedConnectionRule.will_split_from += connectionRule.trip_id;
       } else if (previous.drop_off_type === "1" && connectionRule.drop_off_type !== "1") {
         mergedConnectionRule = connectionRule;
-        mergedConnectionRule.trip_id += separator + previous.trip_id;
+        if (mergedConnectionRule.will_split_from !== '')
+          mergedConnectionRule.will_split_from += separator
+        mergedConnectionRule.will_split_from += previous.trip_id;
       }
-      previous = mergedConnectionRule;
+
+      if (mergedConnectionRule)
+        previous = mergedConnectionRule;
+      else {
+        //oops, it wasn’t a common connection after all
+        printConnectionRule(previous);
+        previous = connectionRule;
+      }
     } else {
       printConnectionRule(previous);
       previous = connectionRule;
