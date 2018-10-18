@@ -31,8 +31,9 @@ describe('Testing whether result contains certain objects (regression tests)', f
 
   it('Stream should contain certain things', async () => {
     var connections = await lcstreamToArray();
-    //assert.equal(connections[0]['arrivalStop'],'BEATTY_AIRPORT');
-    assert.equal(connections[0]['headsign'],'to Amargosa Valley');
+    //This will be the first element when sorted correctly
+    assert.equal(connections[0]['arrivalStop'],'BEATTY_AIRPORT');
+    assert.equal(connections[0]['headsign'],'to Airport');
 
     //Retrieve the joiningtrip from the connections array for one specific day
     let joiningtrip = connections.filter(connection => {
