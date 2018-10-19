@@ -41,6 +41,13 @@ describe('Testing whether result contains certain objects (regression tests)', f
     });
     //The joining train should only show 1 connection for the joined part of the trip, which has a departure a D. Let’s check this
     assert.equal(joiningtrip.filter(connection => connection.departureStop === 'D').length, 1);
+
+    //There is a tricky non joining trip in the tests. This one should however show up in the data...
+    let nonjoiningtrip = connections.filter(connection => {
+      return connection.trip.route.trip_id === 'non_joining_trip_3';
+    });
+    
+    assert.notEqual(nonjoiningtrip.length,0);
   });
 
   it('JSON-LD Stream should contain Connections', async () => {
