@@ -11,7 +11,7 @@ var connectionRules = fs.createReadStream('connections.txt', { encoding: 'utf8',
 var previous = null;
 
 connectionRules.on('data', connectionRule => {
-  connectionRule.will_split_from = "";
+  connectionRule.will_split_into = "";
   connectionRule.joined_with = "";
   if (previous) {
     //Check if arrivaltime, departuretime, departurestop and arrival stop are the same. Then there’s a possibility this is a joined train.
@@ -36,14 +36,14 @@ connectionRules.on('data', connectionRule => {
       //If the drop-off type is different, then merge it with the one where dropOffType is 0
       else if (connectionRule.drop_off_type === "1" && previous.drop_off_type !== "1") {
         mergedConnectionRule = previous;
-        if (mergedConnectionRule.will_split_from !== '')
-          mergedConnectionRule.will_split_from += separator
-        mergedConnectionRule.will_split_from += connectionRule.trip_id;
+        if (mergedConnectionRule.will_split_into !== '')
+          mergedConnectionRule.will_split_into += separator
+        mergedConnectionRule.will_split_into += connectionRule.trip_id;
       } else if (previous.drop_off_type === "1" && connectionRule.drop_off_type !== "1") {
         mergedConnectionRule = connectionRule;
-        if (mergedConnectionRule.will_split_from !== '')
-          mergedConnectionRule.will_split_from += separator
-        mergedConnectionRule.will_split_from += previous.trip_id;
+        if (mergedConnectionRule.will_split_into !== '')
+          mergedConnectionRule.will_split_into += separator
+        mergedConnectionRule.will_split_into += previous.trip_id;
       }
 
       if (mergedConnectionRule)
