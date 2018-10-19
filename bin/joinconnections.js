@@ -10,6 +10,10 @@ var connectionRules = fs.createReadStream('connections.txt', { encoding: 'utf8',
 
 var previous = null;
 
+//!##
+//!## TODO: renamed joined and will_split to potentially splitting, as there is no guarantee they will actually do that.
+//!##
+
 connectionRules.on('data', connectionRule => {
   connectionRule.will_split_into = "";
   connectionRule.joined_with = "";
