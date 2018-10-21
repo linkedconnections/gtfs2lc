@@ -37,8 +37,9 @@ describe('Testing whether result contains certain objects (regression tests)', f
 
     //Retrieve the joiningtrip from the connections array for one specific day
     let joiningtrip = connections.filter(connection => {
-      return connection.trip.route.route_id === 'joining_route' && connection.departureTime.format('YYYY-MM-DD') === '2007-12-16';
+      return connection.trip.route.route_id === 'joining_route' && connection.departureTime.format('YYYY-MM-DD') === '2007-02-17';
     });
+    console.log(joiningtrip);
     //The joining train should only show 1 connection for the joined part of the trip, which has a departure a D. Let’s check this
     assert.equal(joiningtrip.filter(connection => connection.departureStop === 'D').length, 1);
 
