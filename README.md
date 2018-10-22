@@ -84,13 +84,15 @@ For more options, check `gtfs2lc --help`
 
 ## How it works (for contributors)
 
-We convert `stop_times.txt` to a stream of connection rules. These rules need a certain explanation about on which days they are running, which can be retrieved using the `trip_id` in the connection rules stream.
+We convert `stop_times.txt` to connection rules, and make sure that potentially splitting or joining trips are flagged (see `bin/joinconnections.js`).
 
-At the same time, we process `calendar_dates.txt` and `calendar.txt` towards a binary format. It will contain a 1 for the number of days from a start date for which the service id is true.
+We then join each row in this newly generated `connections.txt` with both their route object from `routes.txt` as with their service dates through `calendar_dates.txt` and `calendar.txt`, that was processed at the same time. It will contain a 1 for the number of days from a start date for which the service id is true.
 
-In the final step, the connection rules are expanded towards connections by joining the days, service ids and rules.
+In the final step, the connection rules are expanded towards connections by joining the days, service ids and rules, also taking into account that some connections may be wrongly identified as splitting or joining.
 
-## Not yet implemented:
+Post-processing steps work directly on the output stream, and can map the output stream to Linked Data. Connections2JSONLD is the main class to look at.
+
+## Not yet implemented
 
 At this moment we've only implemented a conversion from the Stop Times to connections. However, in future work we will also implement a system for describing trips and routes, a system for transit stops and a system for transfers.
 
@@ -98,4 +100,6 @@ Furthermore, also `frequencies.txt` is not supported at this time. We hope to su
 
 ## Authors
 
-Pieter Colpaert <pieter.colpaert@ugent.be>
+ * Pieter Colpaert <pieter.colpaert@ugent.be>
+
+ * Julián Rojas <julianandres.rojasmelendez@ugent.be>
