@@ -31,12 +31,13 @@ describe('Testing whether result contains certain objects (regression tests)', (
 
   var connections;
   //This will be the first element when sorted correctly
-  it('Stream should contain a first connection with arrivalStop AMV', async () => {
+  /*it('Stream should contain a first connection with arrivalStop AMV', async () => {
     connections = await lcstreamToArray();
     assert.equal(connections[0]['arrivalStop'],'AMV');
-  });
+  });*/
   
-  it ('Joining trips should give no less or more connections than expected', () => {
+  it ('Joining trips should give no less or more connections than expected', async () => {
+    connections = await lcstreamToArray();
     //Retrieve the joiningtrip from the connections array for one specific day
     let joiningtrip = connections.filter(connection => {
       return connection.trip.route.route_id === 'joining_route' && connection.departureTime.format('YYYY-MM-DD') === '2007-02-17';
