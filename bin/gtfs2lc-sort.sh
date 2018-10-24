@@ -33,20 +33,20 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
     echo Creating connections.txt file
     $CURDIR/stoptimes2connections.js > connections.txt;
     echo Combining splitting trains into 1 connection
+    
     ## order the connections.txt according to deptime, artime and stops
     TRIPID_CONNECTIONS=`head -n1 connections.txt | tr "," "\n" | grep -n "trip_id"| cut -d: -f1`
-    DEPTIME=`head -n1 connections.txt | tr "," "\n" | grep -n "departure_dfm"| cut -d: -f1`
-    ARTIME=`head -n1 connections.txt | tr "," "\n" | grep -n "arrival_dfm"| cut -d: -f1`
-    DEPARTURESTOPID=`head -n1 connections.txt | tr "," "\n" | grep -ne "departure_stop$"| cut -d: -f1`
-    ARRIVALSTOPID=`head -n1 connections.txt | tr "," "\n" | grep -ne "arrival_stop$"| cut -d: -f1`
-    #The type of ordering is not so important here: as long as the same things are beneath each other
-    { head -n 1 connections.txt ; tail -n +2 connections.txt | sort -t , -k $DEPTIME,$DEPTIME -k $ARTIME,$ARTIME -k $DEPARTURESTOPID,$DEPARTURESTOPID -k $ARRIVALSTOPID,$ARRIVALSTOPID ; } > connections2.txt ; mv connections2.txt connections.txt
+    #DEPTIME=`head -n1 connections.txt | tr "," "\n" | grep -n "departure_dfm"| cut -d: -f1`
+    #ARTIME=`head -n1 connections.txt | tr "," "\n" | grep -n "arrival_dfm"| cut -d: -f1`
+    #DEPARTURESTOPID=`head -n1 connections.txt | tr "," "\n" | grep -ne "departure_stop$"| cut -d: -f1`
+    #ARRIVALSTOPID=`head -n1 connections.txt | tr "," "\n" | grep -ne "arrival_stop$"| cut -d: -f1`
+    #STOPSEQUENCE_CONNECTIONS=`head -n1 connections.txt | tr "," "\n" | grep -ne "stop_sequence"| cut -d: -f1`
+    #The same things need to be clustered, while the stop_sequence
+    #{ head -n 1 connections.txt ; tail -n +2 connections.txt | sort -t , -k $DEPTIME,$DEPTIME -k $ARTIME,$ARTIME -k $DEPARTURESTOPID,$DEPARTURESTOPID -k $ARRIVALSTOPID,$ARRIVALSTOPID ; } > connections2.txt ; mv connections2.txt connections.txt
     
-    ## Now launch the nodejs script that can join connections that are the same but which should have multiple trips
-    $CURDIR/joinconnections.js > connections2.txt && mv connections2.txt connections.txt;
     ## Finally sort all files in  order to be processed for gtfs2lc
     echo Sorting files in directory $1;
-    { head -n 1 connections.txt ; tail -n +2 connections.txt | sort -t , -k ${TRIPID_CONNECTIONS}d,${TRIPID_CONNECTIONS} -k ${TRIPID_CONNECTIONS}d,${TRIPID_CONNECTIONS} ; } > connections2.txt ; mv connections2.txt connections.txt &
+    { head -n 1 connections.txt ; tail -n +2 connections.txt | sort -t , -k ${TRIPID_CONNECTIONS}d,${TRIPID_CONNECTIONS} ; } > connections2.txt ; mv connections2.txt connections.txt &
     { head -n 1 trips.txt ; tail -n +2 trips.txt | sort -t , -k ${TRIPID_TRIPS}d,${TRIPID_TRIPS} ; } > trips2.txt ; mv trips2.txt trips.txt &
     { head -n 1 calendar.txt ; tail -n +2 calendar.txt | sort -t , -k 1d,1; } > calendar2.txt ; mv calendar2.txt calendar.txt &
     { head -n 1 calendar_dates.txt ; tail -n +2 calendar_dates.txt | sort -t , -k 1d,1; } > calendar_dates2.txt ; mv calendar_dates2.txt calendar_dates.txt &
