@@ -72,30 +72,47 @@ That’s it! Want to serve your Linked Connections over HTTP? Take a look at our
 
 ### More options
 
+#### Post-processing joining connections, and adding nextConnection properties
+
+In GTFS, joining and splitting trains are fixed in a horrible way. See https://support.google.com/transitpartners/answer/7084064?hl=en for more details.
+
+In Linked Connections, we can solve this gracefully by adding a nextConnection array to every connection. A splitting train is then, on the last connection before it is split, indicate 2 nextConnection items.
+
+On your newline delimited jsonld file, you can perform this script in order to make that work: `linkedconnections-joinandsort yourconnectionsfile.nldjsonld`
+
+#### MongoDB
 Next to the jsonld format, we’ve also implement the “`mongold`” format. It can be directly used by the command `mongoimport` as follows:
 
 ```bash
 gtfs2lc /path/to/extracted/gtfs -f mongold -b baseUris.json | mongoimport -c myconnections
 ```
 
-Mind that only MongoDB starting version 2.6 is supported.
+Mind that only MongoDB starting version 2.6 is supported and mind that it doesn’t work at this moment well together with the post-processing step of joining trips.
+
+#### Even more options
 
 For more options, check `gtfs2lc --help`
 
 ## How it works (for contributors)
 
-We convert `stop_times.txt` to a stream of connection rules. These rules need a certain explanation about on which days they are running, which can be retrieved using the `trip_id` in the connection rules stream.
+We first convert `stop_times.txt` to connection rules called `connections.txt`.
 
-At the same time, we process `calendar_dates.txt` and `calendar.txt` towards a binary format. It will contain a 1 for the number of days from a start date for which the service id is true.
+Service dates are processed through `calendar_dates.txt` and `calendar.txt`, that was processed at the same time.
 
-In the final step, the connection rules are expanded towards connections by joining the days, service ids and rules.
+In the final step, the connection rules are expanded towards connections by joining the days, service ids and connectionRules.
 
-## Not yet implemented:
+Post-processing steps work directly on the output stream, and can map the output stream to Linked Data. Connections2JSONLD is the main class to look at.
 
-At this moment we've only implemented a conversion from the Stop Times to connections. However, in future work we will also implement a system for describing trips and routes, a system for transit stops and a system for transfers.
+Another post-processing step is introduced to fix joining and splitting trips.
+
+## Not yet implemented
+
+At this moment we've only implemented a conversion from the Stop Times to connections. However, in future work we will also implement a system for describing trips and routes, a system for transit stops and a system for transfers in Linked Data.
 
 Furthermore, also `frequencies.txt` is not supported at this time. We hope to support this in the future though.
 
 ## Authors
 
-Pieter Colpaert <pieter.colpaert@ugent.be>
+ * Pieter Colpaert <pieter.colpaert@ugent.be>
+
+ * Julián Rojas <julianandres.rojasmelendez@ugent.be>
