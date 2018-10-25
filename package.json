@@ -1,14 +1,15 @@
 {
   "name": "gtfs2lc",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Mapping script from gtfs to (linked) connections",
   "main": "lib/gtfs2lc.js",
   "bin": {
     "gtfs2lc": "./bin/gtfs2lc.js",
-    "gtfs2lc-sort": "./bin/gtfs2lc-sort.sh"
+    "gtfs2lc-sort": "./bin/gtfs2lc-sort.sh",
+    "linkedconnections-joinandsort": "./bin/linkedconnections-sort.sh"
   },
   "scripts": {
-    "test": "./node_modules/mocha/bin/mocha"
+    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc-sort.sh test/sample-feed ; ./bin/gtfs2lc.js -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; ./node_modules/mocha/bin/mocha"
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,7 @@
     "url": "https://github.com/LinkedConnections/gtfs2lc/issues"
   },
   "dependencies": {
+    "JSONStream": "^1.3.5",
     "asynciterator": "^2.0.0",
     "commander": "^2.19.0",
     "fast-csv": "^0.6.0",

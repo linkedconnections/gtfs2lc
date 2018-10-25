@@ -1,6 +1,6 @@
 {
   "stops" : "http://data.gtfs.org/example/stops/{stop_id}",
   "routes" : "http://data.gtfs.org/example/routes/{routes.route_id}",
-  "trips" : "http://data.gtfs.org/example/trips/{trips.trip_id}",
-  "connections" : "http://example/linkedconnections.org/connections/{connection.departureTime(YYYYMMDD)}{connection.departureStop}{trips.trip_id}"
+  "trips" : "http://data.gtfs.org/example/trips/{trips.trip_id}/{connection.departureTime(YYYYMMDD)}",
+  "connections" : "http://example/linkedconnections.org/connections/{connection.departureTime(YYYYMMDD)}/{connection.departureStop}/{trips.trip_id}"
 }
