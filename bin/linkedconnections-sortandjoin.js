@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
 //Read from standard input until endline or until end stream, process chunk.
-
-const JSONStream = require('JSONStream'),
-      {AsyncIterator} = require('asynciterator');
+const JSONStream = require('JSONStream');
 
 var printConnection = function (connection) {
   console.log(JSON.stringify(connection));
@@ -73,7 +71,8 @@ var processConnection = function (connection) {
   }
   if (tripsLastConnection[connection['gtfs:trip']]) {
     connection.nextConnection = [ tripsLastConnection[connection['gtfs:trip']]["@id"] ];
-    if (connection.willSplitInto && !tripsLastConnection[connection['gtfs:trip']].willSplitInto) {
+    //TODO: in order to support multiple splitting, check that if the element exist, that it is lower
+    if (connection.willSplitInto && !tripsLastConnection[connection['gtfs:trip']].willSplitInto ) { // || connection.willSplitInto.length < tripsLastConnection[connection['gtfs:trip']].willSplitInto.length)) {
       //This is our queue: apparently this connection will split its vehicles in 2, as the next connection from this very trip is not indicated to split any more
       for (let splitTrip of connection.willSplitInto) {
         if (tripsLastConnection[splitTrip]) {
@@ -87,6 +86,12 @@ var processConnection = function (connection) {
     //This indicates the last connection of a to be joined trip
     connection.nextConnection = [ tripsLastConnection[joinedTrips[connection['gtfs:trip']]]['@id'] ];
   }
-  tripsLastConnection[connection['gtfs:trip']] = connection;
+  //only store the essentials in memory
+  tripsLastConnection[connection['gtfs:trip']] = { "@id": connection['@id'], "willSplitInto": connection['willSplitInto'] };
+  //remove willSplitInto and joinedWithTrip
+  if (connection.willSplitInto)
+    delete connection.willSplitInto;
+  if (connection.joinedWithTrip)
+    delete connection.joinedWithTrip;
   printConnection(connection);
 };
