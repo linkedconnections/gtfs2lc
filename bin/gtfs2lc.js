@@ -41,8 +41,6 @@ if (!program.path) {
 }
 
 var mapper = new gtfs2lc.Connections({
-  startDate : program.startDate,
-  endDate : program.endDate,
   store : program.store
 });
 

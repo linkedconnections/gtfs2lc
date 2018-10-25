@@ -15,8 +15,8 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
     ARRIVALSTOP=$(( `head -n1 $1 | tr "," "\n" | grep -n "arrivalStop"| cut -d: -f1` ));
     ROUTE=$(( `head -n1 $1 | tr "," "\n" | grep -n "gtfs:route"| cut -d: -f1` ));
 
-    ## And after the sorting, we need to pipe it to a process that is able to join trains
-    sort $1 -t , -k ${DEPARTURETIME}d,${DEPARTURETIME} -k ${ARRIVALTIME}d,${ARRIVALTIME} -k ${ROUTE}d,${ROUTE} -k ${DEPARTURESTOP}d,${DEPARTURESTOP} -k ${ARRIVALSTOP}d,${ARRIVALSTOP} | $CURDIR/linkedconnections-sortandjoin.js ;
+    ## And after the sorting, we need to pipe it to a process that is able to join trains. Ordered in descending order
+    sort $1 -t , -k ${DEPARTURETIME}dr,${DEPARTURETIME} -k ${ARRIVALTIME}dr,${ARRIVALTIME} -k ${ROUTE}dr,${ROUTE} -k ${DEPARTURESTOP}dr,${DEPARTURESTOP} -k ${ARRIVALSTOP}dr,${ARRIVALSTOP} | $CURDIR/linkedconnections-sortandjoin.js ;
 } || {
     echo "Please provide the location of your output of 'gtfs2lc -f jsonld'"
 }

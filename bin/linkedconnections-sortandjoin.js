@@ -13,8 +13,8 @@ var previous = null;
 var tripsLastConnection = {};
 
 let jsonstream = process.stdin.pipe(JSONStream.parse());
-console.time();
-jsonstream.on("data", (connection, done) => {
+
+jsonstream.on("data", (connection) => {
   if (!previous) {
     previous = connection;
   } else {
@@ -52,22 +52,41 @@ jsonstream.on("data", (connection, done) => {
       if (mergedConnection)
         previous = mergedConnection;
       else {
-        printConnection(previous);
+        processConnection(previous);
         previous = connection;
       }
     } else {
-      printConnection(previous);
+      processConnection(previous);
       previous = connection;
     }
-    
   }
-  /*if (tripsLastConnection[connection['gtfs:trip']]) {
-    printConnection(tripsLastConnection[connection['gtfs:trip']]);
+}).on('end', () => {
+});
+
+var joinedTrips = {};
+
+var processConnection = function (connection) {
+  if (connection.joinedWithTrip) {
+    for (let joinedTrip of connection.joinedWithTrip) {
+      joinedTrips[joinedTrip] = connection['gtfs:trip'];
+    }
+  }
+  if (tripsLastConnection[connection['gtfs:trip']]) {
+    connection.nextConnection = [ tripsLastConnection[connection['gtfs:trip']]["@id"] ];
+    if (connection.willSplitInto && !tripsLastConnection[connection['gtfs:trip']].willSplitInto) {
+      //This is our queue: apparently this connection will split its vehicles in 2, as the next connection from this very trip is not indicated to split any more
+      for (let splitTrip of connection.willSplitInto) {
+        if (tripsLastConnection[splitTrip]) {
+          connection.nextConnection.push(tripsLastConnection[splitTrip]["@id"]);
+        } //else {
+          //Half of this train stops at this place and does not continue
+        //}
+      }
+    }
+  } else if (joinedTrips[connection['gtfs:trip']]) {
+    //This indicates the last connection of a to be joined trip
+    connection.nextConnection = [ tripsLastConnection[joinedTrips[connection['gtfs:trip']]]['@id'] ];
   }
   tripsLastConnection[connection['gtfs:trip']] = connection;
- */
-}).on('data', () => {
-
-}).on('end', () => {
-  //FLUSH: make sure all tripsLastConnections are made available
-});
+  printConnection(connection);
+};
