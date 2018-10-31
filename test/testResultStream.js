@@ -3,54 +3,39 @@ const assert = require('assert');
 const N3 = require('n3');
 const fs = require('fs');
 
-describe('Testing whether result contains certain objects (regression tests)', function() {
-  this.timeout(240000);
-  var lcstreamToArray = function (options) {
+describe('Testing whether result contains certain objects (regression tests)', function () {
+  this.timeout(300000);
+
+  var lcstreamToArray = options => {
     if (!options)
       options = {};
     return new Promise(async (resolve, reject) => {
-      let mapper = new gtfs2lc.Connections('./test/sample-feed/', options);
-      let baseUris = JSON.parse(fs.readFileSync('baseUris-example.json', 'utf-8'));
-
-      let connectionSources = await mapper.getConnectionsByZones();
-      let linkedConnections = {};
-      let count = 0;
-
-      Object.keys(connectionSources).forEach(key => {
-        let stream = connectionSources[key];
-        if (options.format && options.format === "rdf") {
-          stream = stream.pipe(new gtfs2lc.Connections2Triples(baseUris));
-        } else if (options.format && options.format === 'jsonld') {
-          stream = stream.pipe(new gtfs2lc.Connections2JSONLD(baseUris));
-        }
-
-        let conns = [];
-
-        stream.on('data', c => {
-          conns.push(c);
-        })
-        .on('error', err => {
-          reject(err);
-        })
-        .on('end', () => {
-          linkedConnections[key] = conns;
-          finish();
-        });
-      });
-
-      let finish = async () => {
-        count++;
-        if(count >= Object.keys(connectionSources).length) {
-          await mapper.close();
-          resolve(linkedConnections);
-        }
-      };
+      //let baseUris = JSON.parse(fs.readFileSync('./baseUris-example.json', 'utf-8'));
+      //options.baseUris = baseUris;
+      let mapper = new gtfs2lc.Connections('./test/sample-feed', options);
+      await mapper.close();
+      resolve(await mapper.map());
     });
   };
 
   it('Stream should contain certain things', async () => {
-    let connections = await lcstreamToArray({format: 'jsonld'});
-    assert.equal(connections['Antwerpen'][1]['arrivalStop'],'https://data.delijn.be/stops/107814');
-    assert.equal(connections['Antwerpen'][1]['direction'],'Puurs - Brussel');
+    try {
+      // First load De Lijn fragmentation index
+      let index = new Map(JSON.parse(fs.readFileSync('./test/delijnIndex.json', 'utf8')));
+      let files = await lcstreamToArray({
+        format: 'jsonld',
+        store: 'KeyvStore',
+        fragmentBy: 'stop_id',
+        fragmentIndex: index
+      });
+
+      //let files = await lcstreamToArray({ format: 'jsonld', store: 'MemStore' });
+      console.log(files);
+    } catch (err) {
+      console.error(err);
+    }
+
+    //assert.equal(connections['Antwerpen'][1]['arrivalStop'],'https://data.delijn.be/stops/107814');
+    //assert.equal(connections['Antwerpen'][1]['direction'],'Puurs - Brussel');
   });
 });
