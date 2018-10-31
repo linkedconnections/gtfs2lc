@@ -1,6 +1,6 @@
 {
-  "stop": "https://data.delijn.be/stops/{stop_id}",
-  "connection": "https://data.delijn.be/connections/{routes.route_long_name}/{connection.departureTime(YYYYMMDDTHHmm)}/{connection.departureStop}/",
-  "trip": "https://data.delijn.be/trips/{routes.route_long_name}/{connection.departureTime(YYYYMMDDTHHmm)}",
+  "stop": "https://data.delijn.be/stops/{stops.stop_code}",
+  "connection": "https://data.delijn.be/connections/{routes.route_long_name}/{trips.startTime(YYYYMMDDTHHmm)}/{connection.departureStop(stop_code)}/",
+  "trip": "https://data.delijn.be/trips/{routes.route_long_name}/{trips.startTime(YYYYMMDDTHHmm)}",
   "route": "https://data.delijn.be/routes/{routes.route_long_name}"
 }
