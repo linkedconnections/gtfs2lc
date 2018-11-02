@@ -5,3 +5,4 @@ node_modules
 .trips
 /.project
 /.idea/*
+test/sample-feed/
