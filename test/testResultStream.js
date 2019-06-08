@@ -33,12 +33,13 @@ describe('Testing whether result contains certain objects (regression tests)', (
   //This will be the first element when sorted correctly
   it('Stream should contain a first connection with arrivalStop AMV', async () => {
     connections = await lcstreamToArray();
-    //assert.equal(connections[0]['arrivalStop'],'AMV');
+    assert.equal(connections[0]['arrivalStop'],'AMV');
   });
 
-  it('JSON-LD Stream should contain Connections', async () => {
+  it('JSON-LD Stream should contain Connections and use LevelStore for data storage', async () => {
     var triples = await lcstreamToArray({
-      format : 'jsonld'
+      format : 'jsonld',
+      store: 'LevelStore'
     });
     assert.equal(triples[0]['@type'],'Connection');
   });
