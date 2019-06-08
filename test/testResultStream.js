@@ -9,11 +9,11 @@ describe('Testing whether result contains certain objects (regression tests)', (
       options = {};
     return new Promise( (resolve, reject) => {
       var mapper = new gtfs2lc.Connections(options);
-      mapper.resultStream('./test/sample-feed', (stream) => {
+      mapper.resultStream('./test/sample-feed', (stream, stopsdb) => {
         if (options.format && options.format === "rdf") {
-          stream = stream.pipe(new gtfs2lc.Connections2Triples({}));
+          stream = stream.pipe(new gtfs2lc.Connections2Triples({}, stopsdb));
         } else if(options.format && options.format === 'jsonld') {
-          stream = stream.pipe(new gtfs2lc.Connections2JSONLD());
+          stream = stream.pipe(new gtfs2lc.Connections2JSONLD(null, stopsdb, null));
         }
         var connections = [];
         stream.on('data', connection => {
