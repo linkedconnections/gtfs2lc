@@ -1,13 +1,12 @@
 {
-  "stop": "http://data.gtfs.org/example/stops/{stop_id}",
-  "route": "http://data.gtfs.org/example/routes/{route_short_id}",
-  "trip": "http://data.gtfs.org/example/trips/{trip_id}/{trip_startTime}",
-  "connection": "http://example/linkedconnections.org/connections/{trip_startTime}/{departureStop}/{trip_id}",
+  "stop": "http://example.org/stations/{stops.stop_id}",
+  "route": "http://example.org/routes/{routeFrom}/{routeTo}/{routes.route_id}",
+  "trip": "http://example.org/trips/{tripLabel}/{tripStartTime}",
+  "connection": "http://example.org/connections/{tripLabel}/00{connection.departureStop}/{tripStartTime}/",
   "resolve": {
-    "route_short_id": "connection.trip.route.route_id.substring(0,5)",
-    "trip_id": "connection.trip.trip_id",
-    "trip_startTime": "format(connection.trip.startTime, 'YYYYMMDDTHHmm');",
-    "departureStop": "connection.departureStop"
+      "routeFrom": "routes.route_long_name.replace(/\\s/gi, '').split('--')[0];",
+      "routeTo": "routes.route_long_name.replace(/\\s/gi, '').split('--')[1];",
+      "tripLabel": "routes.route_short_name + routes.route_id;",
+      "tripStartTime": "format(trips.startTime, 'YYYYMMDDTHHmm');"
   }
 }
-

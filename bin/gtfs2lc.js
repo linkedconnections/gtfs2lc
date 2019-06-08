@@ -50,7 +50,7 @@ if (program.baseUris) {
 }
 
 var resultStream = null;
-mapper.resultStream(program.path, function (stream) {
+mapper.resultStream(program.path, function (stream, stopsdb) {
   resultStream = stream;
   if (!program.format || program.format === "json") {
     stream.on('data', function (connection) {
@@ -78,6 +78,7 @@ mapper.resultStream(program.path, function (stream) {
         xsd: 'http://www.w3.org/2001/XMLSchema#',
         trip : { '@type' : '@id', '@id' : 'gtfs:trip' },
         Connection : 'lc:Connection',
+        CancelledConnection: 'lc:CancelledConnection',
         departureTime : { '@type' : 'xsd:dateTime', '@id' : 'lc:departureTime' },
         departureStop : { '@type' : '@id', '@id' : 'lc:departureStop' },
         arrivalStop : { '@type' : '@id', '@id' : 'lc:arrivalStop' },
@@ -85,7 +86,7 @@ mapper.resultStream(program.path, function (stream) {
       }
     };
     //convert triples stream to jsonld stream
-    stream = stream.pipe(new Connections2JSONLD(baseUris, context));
+    stream = stream.pipe(new Connections2JSONLD(baseUris, stopsdb, context));
     //prepare the output
     if (program.format === 'mongold') {
       //convert JSONLD Stream to MongoDB Stream
@@ -93,7 +94,7 @@ mapper.resultStream(program.path, function (stream) {
     }
     stream = stream.pipe(new jsonldstream.Serializer()).pipe(process.stdout);
   } else if (['ntriples','turtle'].indexOf(program.format) > -1) {
-    stream = stream.pipe(new gtfs2lc.Connections2Triples(baseUris));
+    stream = stream.pipe(new gtfs2lc.Connections2Triples(baseUris, stopsdb));
     if (program.format === 'ntriples') {
       stream = stream.pipe(new N3.StreamWriter({ format : 'N-Triples'}));
     } else if (program.format === 'turtle') {
