@@ -1,6 +1,6 @@
 # GTFS to Linked Connections
 
-[![Build Status](https://travis-ci.org/linkedconnections/gtfs2lc.svg?branch=master)](https://travis-ci.org/linkedconnections/gtfs2lc) [![npm](https://img.shields.io/npm/v/gtfs2lc.svg?style=popout)](https://npmjs.com/package/gtfs2lc) [![Greenkeeper badge](https://badges.greenkeeper.io/linkedconnections/gtfs2lc.svg)](https://greenkeeper.io/)
+[![Build Status](https://travis-ci.org/linkedconnections/gtfs2lc.svg?branch=master)](https://travis-ci.org/linkedconnections/gtfs2lc) [![npm](https://img.shields.io/npm/v/gtfs2lc.svg?style=popout)](https://npmjs.com/package/gtfs2lc) [![Greenkeeper badge](https://badges.greenkeeper.io/linkedconnections/gtfs2lc.svg)](https://greenkeeper.io/) [![Coverage Status](https://coveralls.io/repos/github/linkedconnections/gtfs2lc/badge.svg?branch=greenkeeper/initial)](https://coveralls.io/github/linkedconnections/gtfs2lc?branch=greenkeeper/initial)
 
 Transforms a GTFS file into a directed acyclic graph of actual _connections_.
 

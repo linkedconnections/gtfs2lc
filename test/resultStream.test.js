@@ -2,6 +2,8 @@ const gtfs2lc = require('../lib/gtfs2lc.js');
 const assert = require('assert');
 const N3 = require('n3');
 
+jest.setTimeout(5000);
+
 describe('Testing whether result contains certain objects (regression tests)', () => {
 
   var lcstreamToArray = function (options) {

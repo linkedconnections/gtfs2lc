@@ -6,3 +6,5 @@ node_modules
 /.project
 /.idea/*
 test/sample-feed/
+.coveralls.yml
+coverage
