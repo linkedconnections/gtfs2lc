@@ -4,7 +4,7 @@ var csv = require('fast-csv'),
     fs = require('fs'),
     St2C = require('../lib/stoptimes/st2c.js');
 
-var stopTimes = fs.createReadStream('stop_times.txt', { encoding: 'utf8', objectMode: true }).pipe(csv({ objectMode: true, headers: true })).on('error', function (e) {
+var stopTimes = fs.createReadStream('stop_times.txt', { encoding: 'utf8', objectMode: true }).pipe(csv.parse({ objectMode: true, headers: true })).on('error', function (e) {
   console.error(e);
 });
 var connectionRules = stopTimes.pipe(new St2C());

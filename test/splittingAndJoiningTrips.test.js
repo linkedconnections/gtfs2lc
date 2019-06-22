@@ -1,7 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
 const JSONStream = require('JSONStream');
-const {AsyncIterator} = require('asynciterator');
 
 describe('The file connections.nldjsonld should contain things', () => {
 

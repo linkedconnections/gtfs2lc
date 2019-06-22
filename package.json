@@ -9,7 +9,8 @@
     "linkedconnections-joinandsort": "./bin/linkedconnections-sort.sh"
   },
   "scripts": {
-    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc-sort.sh test/sample-feed ; ./bin/gtfs2lc.js -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; ./node_modules/mocha/bin/mocha"
+    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc-sort.sh test/sample-feed ; ./bin/gtfs2lc.js -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; jest",
+    "coveralls": "jest --coverage && cat ./coverage/lcov.info | coveralls"
   },
   "repository": {
     "type": "git",
@@ -30,13 +31,14 @@
     "asynciterator": "^2.0.1",
     "commander": "^2.20.0",
     "date-fns": "^1.30.1",
-    "fast-csv": "^0.6.0",
+    "fast-csv": "^3.0.1",
     "jsonld-stream": "^1.0.4",
     "level": "^5.0.1",
-    "n3": "^0.4.5",
+    "n3": "^1.1.1",
     "uri-templates": "^0.2.0"
   },
   "devDependencies": {
-    "mocha": "^6.1.4"
+    "coveralls": "^3.0.4",
+    "jest": "^24.8.0"
   }
 }
