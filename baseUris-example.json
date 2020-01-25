@@ -7,6 +7,6 @@
       "routeFrom": "routes.route_long_name.replace(/\\s/gi, '').split('--')[0];",
       "routeTo": "routes.route_long_name.replace(/\\s/gi, '').split('--')[1];",
       "tripLabel": "routes.route_short_name + routes.route_id;",
-      "tripStartTime": "format(trips.startTime, 'YYYYMMDDTHHmm');"
+      "tripStartTime": "format(trips.startTime, 'yyyyMMdd\\'T\\'HHmm');"
   }
 }
