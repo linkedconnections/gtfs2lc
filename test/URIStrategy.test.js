@@ -71,7 +71,7 @@ describe('URIStrategy', () => {
           'http://example.org/connections/{trip_startTime}/{departureStop}/{trip_id}',
         resolve: {
           trip_id: 'connection.trip.trip_id',
-          trip_startTime: "format(connection.trip.startTime, 'YYYYMMDDTHHmm');",
+          trip_startTime: 'format(connection.trip.startTime, "yyyyMMdd\'T\'HHmm");',
           departureStop: 'connection.departureStop',
         },
       });
