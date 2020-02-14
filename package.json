@@ -9,8 +9,8 @@
     "linkedconnections-joinandsort": "./bin/linkedconnections-sort.sh"
   },
   "scripts": {
-    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc-sort.sh test/sample-feed ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; jest",
-    "coveralls": "jest --coverage && cat ./coverage/lcov.info | coveralls"
+    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc-sort.sh test/sample-feed ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; jest --runInBand",
+    "coveralls": "jest --runInBand --coverage && cat ./coverage/lcov.info | coveralls"
   },
   "repository": {
     "type": "git",

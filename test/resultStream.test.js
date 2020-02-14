@@ -1,4 +1,3 @@
-const gtfs2lc = require('../lib/gtfs2lc.js');
 const assert = require('assert');
 const { exec } = require('child_process');
 const fs = require('fs');
@@ -38,13 +37,9 @@ describe('Testing whether result contains certain objects (regression tests)', (
   var connections;
   //This will be the first element when sorted correctly
   it('Stream should contain a first connection with arrivalStop AMV', async () => {
-    try {
       await doGtfsSort();
       connections = await lcstreamToArray({}, 'result.json');
       assert.equal(JSON.parse(connections[0])['arrivalStop'], 'AMV');
-    } catch (err) {
-      console.error(err);
-    }
   });
 
   it('JSON-LD Stream should contain Connections and use KeyvStore for data storage', async () => {
