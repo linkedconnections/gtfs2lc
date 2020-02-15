@@ -1,67 +1,62 @@
-const gtfs2lc = require('../lib/gtfs2lc.js');
 const assert = require('assert');
-const N3 = require('n3');
+const { exec } = require('child_process');
+const fs = require('fs');
+const util = require('util');
 
-jest.setTimeout(5000);
+const readFile = util.promisify(fs.readFile);
+
+jest.setTimeout(60000);
 
 describe('Testing whether result contains certain objects (regression tests)', () => {
 
-  var lcstreamToArray = function (options) {
-    if (!options)
-      options = {};
+  var doGtfsSort = () => {
     return new Promise((resolve, reject) => {
-      var mapper = new gtfs2lc.Connections(options);
-      mapper.resultStream('./test/sample-feed', (stream, stopsdb) => {
-
-        if (options.format && options.format === 'jsonld') {
-          stream = stream.pipe(new gtfs2lc.Connections2JSONLD(null, stopsdb, null));
+      exec(`./bin/gtfs2lc-sort.sh test/sample-feed`, (err, stdout, stderr) => {
+        if (err) {
+          reject(stderr);
+        } else {
+          resolve();
         }
-
-        if (options.format && options.format === "turtle") {
-          stream = stream.pipe(new gtfs2lc.Connections2Triples({}, stopsdb))
-            .pipe(new N3.StreamWriter(
-              {
-                prefixes: {
-                  lc: 'http://semweb.mmlab.be/ns/linkedconnections#',
-                  gtfs: 'http://vocab.gtfs.org/terms#',
-                  xsd: 'http://www.w3.org/2001/XMLSchema#'
-                }
-              }));
-        }
-
-        var connections = [];
-        stream.on('data', connection => {
-          connections.push(connection);
-        });
-        stream.on('error', (error) => {
-          reject(error);
-        });
-        stream.on('end', () => {
-          resolve(connections);
-        });
       });
+    });
+  };
+
+  var lcstreamToArray = (options, file) => {
+    return new Promise((resolve, reject) => {
+      exec(`./bin/gtfs2lc.js -s -f ${options['format']} -S ${options['store']} test/sample-feed > test/sample-feed/${file}`,
+        async (err, stdout, stderr) => {
+          if (err) {
+            reject(stderr);
+          } else {
+            resolve((await readFile(`./test/sample-feed/${file}`, 'utf8')).split('\n'))
+          }
+        });
     });
   };
 
   var connections;
   //This will be the first element when sorted correctly
   it('Stream should contain a first connection with arrivalStop AMV', async () => {
-    connections = await lcstreamToArray();
-    assert.equal(connections[0]['arrivalStop'], 'AMV');
+      await doGtfsSort();
+      connections = await lcstreamToArray({}, 'result.json');
+      assert.equal(JSON.parse(connections[0])['arrivalStop'], 'AMV');
   });
 
-  it('JSON-LD Stream should contain Connections and use LevelStore for data storage', async () => {
+  it('JSON-LD Stream should contain Connections and use KeyvStore for data storage', async () => {
+    await doGtfsSort();
     var triples = await lcstreamToArray({
       format: 'jsonld',
-      store: 'LevelStore'
-    });
-    assert.equal(triples[0]['@type'], 'Connection');
+      store: 'KeyvStore'
+    }, 'result.jsonld');
+    assert.equal(JSON.parse(triples[1])['@type'], 'Connection');
   });
 
   it('RDF Stream should contain Connections in turtle format', async () => {
+    await doGtfsSort();
     var triples = await lcstreamToArray({
-      format: 'turtle'
-    });
+      format: 'turtle',
+      store: 'MemStore'
+    }, 'turtle.ttl');
     assert.equal(triples[4].includes('a lc:Connection'), true);
   });
 });
