@@ -80,15 +80,17 @@ describe('URIStrategy', () => {
 
     it('Should resolve trip URI', () => {
       const strategy = new URIStrategy({
-        trip: 'http://example.org/trips/{trips.trip_id}/{trips.startTime(yyyyMMdd)}',
+        trip: 'http://example.org/trips/{trips.trip_id}/{trips.startTime(yyyyMMdd)}/{connection.departureTime(HH)}{connection.arrivalTime(mm)}',
       });
       const connection = {
+        departureTime: new Date('2020-02-15T09:23:00.000Z'),
+        arrivalTime: new Date('2020-02-15T09:42:00.000Z'),
         trip: {
           trip_id: 'trip1',
           startTime: new Date('2020-02-15T08:00:00.000Z')
         }
       };
-      assert.equal(strategy.getTripId(connection), 'http://example.org/trips/trip1/20200215');
+      assert.equal(strategy.getTripId(connection), 'http://example.org/trips/trip1/20200215/1042');
     });
   });
 
@@ -96,7 +98,7 @@ describe('URIStrategy', () => {
     it('should resolve expression using date-fns.format function', () => {
       const strategy = new URIStrategy({
         connection:
-          'http://example.org/connections/{trip_startTime}/{departureStop}/{trip_id}',
+          'http://example.org/connections/{trip_startTime}/{departureStop}/{trip_id}{connection.something}',
         resolve: {
           trip_id: 'connection.trip.trip_id',
           trip_startTime: 'format(connection.trip.startTime, "yyyyMMdd\'T\'HHmm");',
@@ -105,6 +107,7 @@ describe('URIStrategy', () => {
       });
 
       const connection = {
+        something: 'some',
         departureStop: '1234',
         trip: {
           trip_id: '5678',
@@ -114,7 +117,7 @@ describe('URIStrategy', () => {
 
       assert.equal(
         strategy.getId(connection),
-        'http://example.org/connections/20180921T1025/1234/5678'
+        'http://example.org/connections/20180921T1025/1234/5678some'
       );
     });
   });
