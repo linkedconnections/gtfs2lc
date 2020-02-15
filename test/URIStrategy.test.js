@@ -80,7 +80,7 @@ describe('URIStrategy', () => {
 
     it('Should resolve trip URI', () => {
       const strategy = new URIStrategy({
-        trip: 'http://example.org/trips/{trips.trip_id}/{trips.startTime(yyyyMMdd)}/{connection.departureTime(HH)}{connection.arrivalTime(mm)}',
+        trip: 'http://example.org/trips/{trips.trip_id}/{trips.startTime(yyyyMMdd)}/{connection.departureTime(yy)}{connection.arrivalTime(yy)}',
       });
       const connection = {
         departureTime: new Date('2020-02-15T09:23:00.000Z'),
@@ -90,7 +90,7 @@ describe('URIStrategy', () => {
           startTime: new Date('2020-02-15T08:00:00.000Z')
         }
       };
-      assert.equal(strategy.getTripId(connection), 'http://example.org/trips/trip1/20200215/1042');
+      assert.equal(strategy.getTripId(connection), 'http://example.org/trips/trip1/20200215/2020');
     });
   });
 
