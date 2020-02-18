@@ -2,38 +2,10 @@
 
 const csv = require('fast-csv');
 const fs = require('fs');
-const readline = require('readline');
 const St2C = require('../lib/stoptimes/st2c.js');
 const numCPUs = require('os').cpus().length;
 
-// Fragment trips.txt accordingly to the number fo available CPU processors
-var trips = fs.createReadStream('trips.txt', { encoding: 'utf8' })
-  .pipe(csv.parse({ objectMode: true, headers: true, quote: '"' }))
-  .on('error', function (e) {
-    console.error(e);
-  });
-var tripsPool = createWriteStreams('trips');
-var tripIndex = -1;
-
-trips.on('data', trip => {
-  if (tripIndex === -1) {
-    for (let i in tripsPool) {
-      tripsPool[i].write(Object.keys(trip));
-    }
-    tripIndex++;
-  }
-
-  tripsPool[tripIndex].write(Object.values(trip));
-  tripIndex = tripIndex < numCPUs - 1 ? tripIndex + 1 : 0;
-});
-
-trips.on('end', () => {
-  for (let i in tripsPool) {
-    tripsPool[i].end();
-  }
-});
-
-// Also fragment stop_times.txt 
+// Fragment stop_times.txt according to the number of available CPU cores
 var stopTimes = fs.createReadStream('stop_times.txt', { encoding: 'utf8', objectMode: true })
   .pipe(csv.parse({ objectMode: true, headers: true, quote: '"' }))
   .on('error', function (e) {
