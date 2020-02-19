@@ -61,6 +61,7 @@ process.on('SIGINT', function () {
     del([
       output + '/.stops',
       output + '/.routes',
+      output + '/.trips',
       output + '/.services',
       output + '/raw_*'
     ],
