@@ -32,7 +32,7 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
     ## Sort trips.txt by trip_id and have the same ordering as stop_times.txt
     { head -n 1 trips.txt ; tail -n +2 trips.txt | sort -t , -k ${TRIPID_TRIPS}d,${TRIPID_TRIPS} ; } > trips2.txt ; mv trips2.txt trips.txt &
     ## Use stoptimes2connections to create a set of connections and trips files
-    echo Creating connections and trips files according to the number of CPU processors available
+    echo Creating connection files according to the number of CPU processors available
     $CURDIR/stoptimes2connections.js;
 
     ## Finally sort calendar.txt and calendar_dates.txt files in order to be processed for gtfs2lc
