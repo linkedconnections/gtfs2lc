@@ -39,7 +39,7 @@ describe('Testing whether result contains certain objects (regression tests)', (
   it('Stream should contain a first connection with arrivalStop AMV', async () => {
       await doGtfsSort();
       connections = await lcstreamToArray({}, 'result.json');
-      assert.equal(JSON.parse(connections[0])['arrivalStop'], 'AMV');
+      assert.equal(JSON.parse(connections[0])['arrivalStop']['stop_id'], 'AMV');
   });
 
   it('JSON-LD Stream should contain Connections and use KeyvStore for data storage', async () => {
