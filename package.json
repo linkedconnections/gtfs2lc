@@ -35,7 +35,6 @@
     "fast-csv": "^4.1.0",
     "jsonld-stream": "^1.0.4",
     "keyv-file": "^0.1.13",
-    "level": "^6.0.0",
     "n3": "^1.3.5",
     "uri-templates": "^0.2.0"
   },
