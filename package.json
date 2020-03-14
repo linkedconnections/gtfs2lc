@@ -29,7 +29,7 @@
   "dependencies": {
     "JSONStream": "^1.3.5",
     "asynciterator": "^2.0.1",
-    "commander": "^4.1.1",
+    "commander": "^5.0.0",
     "date-fns": "^2.9.0",
     "del": "^5.1.0",
     "fast-csv": "^4.1.0",
