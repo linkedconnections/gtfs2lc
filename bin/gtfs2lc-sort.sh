@@ -31,7 +31,7 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
     { head -n 1 stop_times.txt ; tail -n +2 stop_times.txt | sort -t , -k ${TRIPID_STOPTIMES}d,${TRIPID_STOPTIMES} -k${STOPSEQUENCE_STOPTIMES}n,${STOPSEQUENCE_STOPTIMES}; } > stop_times2.txt ; mv stop_times2.txt stop_times.txt ;
     ## Sort trips.txt by trip_id and have the same ordering as stop_times.txt
     { head -n 1 trips.txt ; tail -n +2 trips.txt | sort -t , -k ${TRIPID_TRIPS}d,${TRIPID_TRIPS} ; } > trips2.txt ; mv trips2.txt trips.txt &
-    ## Use stoptimes2connections to create a set of connections and trips files
+    ## Use stoptimes2connections to create a set of connections files
     echo Creating connection files according to the number of CPU processors available
     $CURDIR/stoptimes2connections.js;
 
