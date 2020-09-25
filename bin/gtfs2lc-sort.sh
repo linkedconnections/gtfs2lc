@@ -24,9 +24,9 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
       sed '1s/^\xEF\xBB\xBF//' routes.txt > routes_unix.txt; mv routes_unix.txt routes.txt ;
     } ;
     ## Find the right numbers of the column keys needed
-    TRIPID_TRIPS=`head -n1 trips.txt | tr "," "\n" | grep -n "trip_id"| cut -d: -f1`
-    TRIPID_STOPTIMES=`head -n1 stop_times.txt | tr "," "\n" | grep -n "trip_id"| cut -d: -f1`
-    STOPSEQUENCE_STOPTIMES=`head -n1 stop_times.txt | tr "," "\n" | grep -n "stop_sequence"| cut -d: -f1`
+    TRIPID_TRIPS=`head -n1 trips.txt | tr "," "\n" | grep -wn "trip_id"| cut -d: -f1`
+    TRIPID_STOPTIMES=`head -n1 stop_times.txt | tr "," "\n" | grep -wn "trip_id"| cut -d: -f1`
+    STOPSEQUENCE_STOPTIMES=`head -n1 stop_times.txt | tr "," "\n" | grep -wn "stop_sequence"| cut -d: -f1`
     ## Sort stop_times.txt by trip id and stop sequence
     { head -n 1 stop_times.txt ; tail -n +2 stop_times.txt | sort -t , -k ${TRIPID_STOPTIMES}d,${TRIPID_STOPTIMES} -k${STOPSEQUENCE_STOPTIMES}n,${STOPSEQUENCE_STOPTIMES}; } > stop_times2.txt ; mv stop_times2.txt stop_times.txt ;
     ## Sort trips.txt by trip_id and have the same ordering as stop_times.txt
