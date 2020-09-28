@@ -13,7 +13,7 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
       sed 's/\r//' calendar.txt > calendar_unix.txt; mv calendar_unix.txt calendar.txt &
       sed 's/\r//' calendar_dates.txt > calendar_dates_unix.txt; mv calendar_dates_unix.txt calendar_dates.txt ;
       sed 's/\r//' routes.txt > routes_unix.txt; mv routes_unix.txt routes.txt ;
-            
+      sed 's/\r//' stops.txt > stops_unix.txt; mv stops_unix.txt stops.txt ;
     } ;
     echo Removing UTF-8 artifacts in directory $1;
     {
@@ -22,7 +22,18 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
       sed '1s/^\xEF\xBB\xBF//' calendar.txt > calendar_unix.txt; mv calendar_unix.txt calendar.txt &
       sed '1s/^\xEF\xBB\xBF//' calendar_dates.txt > calendar_dates_unix.txt; mv calendar_dates_unix.txt calendar_dates.txt ;
       sed '1s/^\xEF\xBB\xBF//' routes.txt > routes_unix.txt; mv routes_unix.txt routes.txt ;
+      sed '1s/^\xEF\xBB\xBF//' stops.txt > stops_unix.txt; mv stops_unix.txt stops.txt ;
     } ;
+
+    echo Trimming EOLs
+    {
+      sed 's/[[:blank:]]*$//' stop_times.txt > stop_times_unix.txt; mv stop_times_unix.txt stop_times.txt &
+      sed 's/[[:blank:]]*$//' trips.txt > trips_unix.txt; mv trips_unix.txt trips.txt &
+      sed 's/[[:blank:]]*$//' calendar.txt > calendar_unix.txt; mv calendar_unix.txt calendar.txt &
+      sed 's/[[:blank:]]*$//' calendar_dates.txt > calendar_dates_unix.txt; mv calendar_dates_unix.txt calendar_dates.txt ;
+      sed 's/[[:blank:]]*$//' routes.txt > routes_unix.txt; mv routes_unix.txt routes.txt ;
+      sed 's/[[:blank:]]*$//' stops.txt > stops_unix.txt; mv stops_unix.txt stops.txt ;
+    }
     ## Find the right numbers of the column keys needed
     TRIPID_TRIPS=`head -n1 trips.txt | tr "," "\n" | grep -wn "trip_id"| cut -d: -f1`
     TRIPID_STOPTIMES=`head -n1 stop_times.txt | tr "," "\n" | grep -wn "trip_id"| cut -d: -f1`
