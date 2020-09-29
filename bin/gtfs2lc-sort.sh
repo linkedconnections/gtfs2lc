@@ -25,14 +25,14 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
       sed '1s/^\xEF\xBB\xBF//' stops.txt > stops_unix.txt; mv stops_unix.txt stops.txt ;
     } ;
 
-    echo Trimming EOLs
+    echo Trimming EOLs and removing continuous double quotes
     {
-      sed 's/[[:blank:]]*$//' stop_times.txt > stop_times_unix.txt; mv stop_times_unix.txt stop_times.txt &
-      sed 's/[[:blank:]]*$//' trips.txt > trips_unix.txt; mv trips_unix.txt trips.txt &
-      sed 's/[[:blank:]]*$//' calendar.txt > calendar_unix.txt; mv calendar_unix.txt calendar.txt &
-      sed 's/[[:blank:]]*$//' calendar_dates.txt > calendar_dates_unix.txt; mv calendar_dates_unix.txt calendar_dates.txt ;
-      sed 's/[[:blank:]]*$//' routes.txt > routes_unix.txt; mv routes_unix.txt routes.txt ;
-      sed 's/[[:blank:]]*$//' stops.txt > stops_unix.txt; mv stops_unix.txt stops.txt ;
+      sed 's/[[:blank:]]*$//' stop_times.txt | sed 's/""//g' > stop_times_unix.txt; mv stop_times_unix.txt stop_times.txt &
+      sed 's/[[:blank:]]*$//' trips.txt | sed 's/""//g' > trips_unix.txt; mv trips_unix.txt trips.txt &
+      sed 's/[[:blank:]]*$//' calendar.txt | sed 's/""//g' > calendar_unix.txt; mv calendar_unix.txt calendar.txt &
+      sed 's/[[:blank:]]*$//' calendar_dates.txt | sed 's/""//g' > calendar_dates_unix.txt; mv calendar_dates_unix.txt calendar_dates.txt ;
+      sed 's/[[:blank:]]*$//' routes.txt | sed 's/""//g' > routes_unix.txt; mv routes_unix.txt routes.txt ;
+      sed 's/[[:blank:]]*$//' stops.txt | sed 's/""//g' > stops_unix.txt; mv stops_unix.txt stops.txt ;
     }
     ## Find the right numbers of the column keys needed
     TRIPID_TRIPS=`head -n1 trips.txt | tr "," "\n" | grep -wn "trip_id"| cut -d: -f1`
