@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 ##Retrieve directory of this bash script
 CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
@@ -41,5 +43,6 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
     { head -n 1 calendar_dates.txt ; tail -n +2 calendar_dates.txt | sort -t , -k 1d,1; } > calendar_dates2.txt ; mv calendar_dates2.txt calendar_dates.txt &
   } ;
 } || {
-  echo Give a path to the gtfs dir as the only argument;
+  1>&2 echo Give a path to the gtfs dir as the only argument;
+  exit 1
 }
