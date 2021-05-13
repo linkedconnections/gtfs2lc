@@ -19,6 +19,11 @@ var printedRows = 0;
 
 var connectionRules = stopTimes.pipe(new St2C());
 
+connectionRules.on('error', err => {
+  console.error(err.message);
+  process.exit(-1);
+})
+
 connectionRules.on('data', row => {
   if (connIndex === -1) {
     for (let i in connectionsPool) {
