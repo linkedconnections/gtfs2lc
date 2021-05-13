@@ -21,7 +21,7 @@ program
 
 if (!program.path) {
   console.error('Please provide a path to the extracted (and sorted using gtfs2lc-sort) GTFS folder as the first argument');
-  process.exit();
+  process.exit(1);
 }
 
 if (program.path.endsWith('/')) {
@@ -65,8 +65,12 @@ process.on('SIGINT', function () {
       output + '/.services',
       output + '/raw_*'
     ],
-      { force: true }).then(function () {
-        process.exit(0);
-      });
+      { force: true })
+    .then(function () {
+      process.exit(0);
+    }, function (err) {
+      console.error(err);
+      process.exit(1);
+    });
   }
 });
