@@ -1,12 +1,9 @@
 {
   "stop": "http://example.org/stations/{stops.stop_id}",
-  "route": "http://example.org/routes/{routeFrom}/{routeTo}/{routes.route_id}",
-  "trip": "http://example.org/trips/{tripLabel}/{tripStartTime}",
-  "connection": "http://example.org/connections/{tripLabel}/00{connection.departureStop}/{tripStartTime}/",
+  "route": "http://example.org/routes/{routes.route_id}",
+  "trip": "http://example.org/trips/{trips.trip_id}",
+  "connection": "http://example.org/connections/{routes.route_id}/{trips.trip_id}/{connection.departureStop}/{tripStartTime}/",
   "resolve": {
-      "routeFrom": "routes.route_long_name.replace(/\\s/gi, '').split('--')[0];",
-      "routeTo": "routes.route_long_name.replace(/\\s/gi, '').split('--')[1];",
-      "tripLabel": "routes.route_short_name + routes.route_id;",
       "tripStartTime": "format(trips.startTime, 'yyyyMMdd\\'T\\'HHmm');"
   }
 }
