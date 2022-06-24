@@ -17,7 +17,7 @@ describe('Testing whether result contains certain objects (regression tests)', (
   var lcstreamToArray = (options, file) => {
     console.log(file);
     return new Promise((resolve, reject) => {
-      exec(`./bin/gtfs2lc.js -s -f ${options['format']} -S ${options['store']} --fresh test/sample-feed > test/sample-feed/${file}`,
+      exec(`./bin/gtfs2lc.js -s -t -f ${options['format']} -S ${options['store']} --fresh test/sample-feed > test/sample-feed/${file}`,
         async (err, stdout, stderr) => {
           if (err) {
             reject(stderr);

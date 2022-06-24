@@ -23,7 +23,7 @@ test('Convert connections to csv', async () => {
 
 function doBasicParsing() {
     return new Promise((resolve, reject) => {
-        exec(`./bin/gtfs2lc.js -s --fresh test/sample-feed > test/sample-feed/formats.json`,
+        exec(`./bin/gtfs2lc.js -t -s --fresh test/sample-feed > test/sample-feed/formats.json`,
             async (err, stdout, stderr) => {
                 if (err) {
                     reject(stderr);

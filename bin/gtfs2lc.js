@@ -14,6 +14,7 @@ program
   .option('-s, --stream', 'Get the connections as a stream on the standard output')
   .option('-S, --store <store>', 'Store type: LevelStore (uses your disk to avoid that you run out of RAM) or MemStore (default)')
   .option('--fresh', 'Make sure to convert all Connection and ignore existing Historic records (which will be deleted)')
+  .option('-t --test', 'Flag that this is a test...nevermind this')
   .arguments('<path>', 'Path to sorted GTFS files')
   .action(function (path) {
     program.path = path;
@@ -43,7 +44,8 @@ var mapper = new gtfs2lc.Connections({
   store: !program.store || program.store === 'undefined' ? 'MemStore' : program.store,
   format: !program.format || program.format === 'undefined' ? 'json' : program.format,
   fresh: program.fresh,
-  baseUris: baseUris
+  baseUris: baseUris,
+  isTest: program.test
 });
 
 var resultStream = null;
