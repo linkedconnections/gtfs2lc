@@ -36,7 +36,7 @@ You can use your favorite unzipper. E.g., `unzip gtfs.zip` should work fine.
 
 ### Step 3: Order and clean your CSV files
 
-We’ve enclosed a bash script which ensures this for you. You can run this bash script using `gtfs2lc-sort <path>`. Next to sorting, it also unifies newlines and removes UTF-8 artifacts.
+This process is now run automatically so you can skip to Step 4. But you can still use it independently using the enclosed bash script `gtfs2lc-clean <path>`. Next to cleaning and sorting, it also unifies newlines and removes UTF-8 artifacts.
 
 If _step 4_ would not give the desired result, you might want to tweak the script manually. In order for our script to work:
 
