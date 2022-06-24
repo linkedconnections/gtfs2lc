@@ -1,14 +1,18 @@
 const c2csv = require('../lib/Connections2CSV');
 const fs = require('fs');
 const util = require('util');
+const del = require('del');
 const { exec } = require('child_process');
 const { Readable } = require('stream');
 
 const readFile = util.promisify(fs.readFile);
 
 beforeAll(async () => {
-    await doGtfsSort();
     await doBasicParsing();
+});
+
+afterAll(async () => {
+    await del(['test/sample-feed/linkedConnections.json']);
 });
 
 test('Convert connections to csv', async () => {
@@ -17,21 +21,9 @@ test('Convert connections to csv', async () => {
     expect(csvCxs[0].split(',').length).toBe(7);
 });
 
-function doGtfsSort() {
-    return new Promise((resolve, reject) => {
-        exec(`./bin/gtfs2lc-sort.sh test/sample-feed`, (err, stdout, stderr) => {
-            if (err) {
-                reject(stderr);
-            } else {
-                resolve();
-            }
-        });
-    });
-}
-
 function doBasicParsing() {
     return new Promise((resolve, reject) => {
-        exec(`./bin/gtfs2lc.js -s test/sample-feed > test/sample-feed/formats.json`,
+        exec(`./bin/gtfs2lc.js -s --fresh test/sample-feed > test/sample-feed/formats.json`,
             async (err, stdout, stderr) => {
                 if (err) {
                     reject(stderr);
