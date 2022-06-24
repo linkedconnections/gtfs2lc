@@ -1,6 +1,6 @@
 # GTFS to Linked Connections
 
-[![Build Status](https://travis-ci.org/linkedconnections/gtfs2lc.svg?branch=master)](https://travis-ci.org/linkedconnections/gtfs2lc) [![npm](https://img.shields.io/npm/v/gtfs2lc.svg?style=popout)](https://npmjs.com/package/gtfs2lc) [![Coverage Status](https://coveralls.io/repos/github/linkedconnections/gtfs2lc/badge.svg?branch=master)](https://coveralls.io/github/linkedconnections/gtfs2lc?branch=master)
+[![Node.js CI](https://github.com/linkedconnections/gtfs2lc/actions/workflows/build-test.yml/badge.svg)](https://github.com/linkedconnections/gtfs2lc/actions/workflows/build-test.yml) [![npm](https://img.shields.io/npm/v/gtfs2lc.svg?style=popout)](https://npmjs.com/package/gtfs2lc) [![Coverage Status](https://coveralls.io/repos/github/linkedconnections/gtfs2lc/badge.svg?branch=master)](https://coveralls.io/github/linkedconnections/gtfs2lc?branch=master)
 
 Transforms a GTFS file into a directed acyclic graph of actual _connections_.
 
@@ -36,7 +36,7 @@ You can use your favorite unzipper. E.g., `unzip gtfs.zip` should work fine.
 
 ### Step 3: Order and clean your CSV files
 
-We’ve enclosed a bash script which ensures this for you. You can run this bash script using `gtfs2lc-sort <path>`. Next to sorting, it also unifies newlines and removes UTF-8 artifacts.
+This process is now run automatically so you can skip to Step 4. But you can still use it independently using the enclosed bash script `gtfs2lc-clean <path>`. Next to cleaning and sorting, it also unifies newlines and removes UTF-8 artifacts.
 
 If _step 4_ would not give the desired result, you might want to tweak the script manually. In order for our script to work:
 

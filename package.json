@@ -1,16 +1,17 @@
 {
   "name": "gtfs2lc",
-  "version": "1.0.5",
+  "version": "2.0.0",
   "description": "Mapping script from gtfs to (linked) connections",
   "main": "lib/gtfs2lc.js",
   "bin": {
     "gtfs2lc": "./bin/gtfs2lc.js",
-    "gtfs2lc-sort": "./bin/gtfs2lc-sort.sh",
+    "gtfs2lc-clean": "./bin/gtfs2lc-clean.sh",
     "linkedconnections-joinandsort": "./bin/linkedconnections-sort.sh"
   },
   "scripts": {
-    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc-sort.sh test/sample-feed ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; jest --runInBand",
-    "coveralls": "jest --runInBand --coverage && cat ./coverage/lcov.info | coveralls"
+    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --runInBand",
+    "test-ci": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --ci --runInBand --coverage",
+    "coveralls": "jest --coverage && coveralls < coverage/lcov.info"
   },
   "repository": {
     "type": "git",
@@ -27,19 +28,19 @@
     "url": "https://github.com/LinkedConnections/gtfs2lc/issues"
   },
   "dependencies": {
-    "JSONStream": "^1.3.5",
     "asynciterator": "^2.0.1",
     "commander": "^4.1.1",
     "date-fns": "^2.18.0",
     "del": "^5.1.0",
     "fast-csv": "^4.3.6",
-    "jsonld-stream": "^1.0.4",
-    "keyv-file": "^0.1.13",
-    "n3": "^1.8.1",
+    "JSONStream": "^1.3.5",
+    "level": "^8.0.0",
+    "n3": "^1.16.2",
+    "stream-json": "^1.7.4",
     "uri-templates": "^0.2.0"
   },
   "devDependencies": {
     "coveralls": "^3.1.0",
-    "jest": "^25.5.4"
+    "jest": "^28.1.1"
   }
 }
