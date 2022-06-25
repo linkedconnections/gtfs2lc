@@ -1,6 +1,6 @@
 {
   "name": "gtfs2lc",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Mapping script from gtfs to (linked) connections",
   "main": "lib/gtfs2lc.js",
   "bin": {
@@ -9,8 +9,8 @@
     "linkedconnections-joinandsort": "./bin/linkedconnections-sort.sh"
   },
   "scripts": {
-    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --runInBand",
-    "test-ci": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --ci --runInBand --coverage",
+    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -t -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --runInBand",
+    "test-ci": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -t -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --ci --runInBand --coverage",
     "coveralls": "jest --coverage && coveralls < coverage/lcov.info"
   },
   "repository": {
