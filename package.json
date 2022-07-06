@@ -9,8 +9,8 @@
     "linkedconnections-joinandsort": "./bin/linkedconnections-sort.sh"
   },
   "scripts": {
-    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -t -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --runInBand",
-    "test-ci": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -t -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --ci --runInBand --coverage",
+    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --runInBand",
+    "test-ci": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --ci --runInBand --coverage",
     "coveralls": "jest --coverage && coveralls < coverage/lcov.info"
   },
   "repository": {
@@ -28,7 +28,6 @@
     "url": "https://github.com/LinkedConnections/gtfs2lc/issues"
   },
   "dependencies": {
-    "asynciterator": "^2.0.1",
     "commander": "^4.1.1",
     "date-fns": "^2.18.0",
     "del": "^5.1.0",
