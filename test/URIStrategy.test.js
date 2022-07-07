@@ -85,17 +85,19 @@ describe('URIStrategy', () => {
       it('should resolve expression using date-fns.format function', () => {
          const strategy = new URIStrategy({
             connection:
-               'http://example.org/connections/{trip_startTime}/{departureStop}/{trip_id}{connection.something}',
+               'http://example.org/connections/{trip_startTime}/{departureStop}/{connection.departureStop}/{connection.arrivalStop}/{trip_id}{connection.something}',
             resolve: {
                trip_id: 'connection.trip.trip_id',
                trip_startTime: 'format(connection.trip.startTime, "yyyyMMdd\'T\'HHmm");',
-               departureStop: 'connection.departureStop',
+               departureStop: 'connection.stopId',
             },
          });
 
          const connection = {
             something: 'some',
-            departureStop: '1234',
+            stopId: '1234',
+            departureStop: { stop_id: '1234' },
+            arrivalStop: { stop_id: '4321' },
             trip: {
                trip_id: '5678',
                startTime: new Date('2018-09-21T10:25:12'),
@@ -104,7 +106,7 @@ describe('URIStrategy', () => {
 
          assert.equal(
             strategy.getId(connection),
-            'http://example.org/connections/20180921T1025/1234/5678some'
+            'http://example.org/connections/20180921T1025/1234/1234/4321/5678some'
          );
       });
    });
