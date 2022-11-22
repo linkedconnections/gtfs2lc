@@ -11,6 +11,7 @@ program
   .option('-f, --format <format>', 'Format of the output. Possibilities: csv, n-triples, turtle, json, jsonld, mongo (extended JSON format to be used with mongoimport) or mongold (default: json)')
   .option('-b, --baseUris <baseUris>', 'Path to a file that describes the baseUris in json')
   .option('-o, --output <output>', 'Path to the folder where the result file will be stored')
+  .option('-c, --compressed', 'Compress resulting connections file using gzip')
   .option('-s, --stream', 'Get the connections as a stream on the standard output')
   .option('-S, --store <store>', 'Store type: LevelStore (uses your disk to avoid that you run out of RAM) or MemStore (default)')
   .option('--fresh', 'Make sure to convert all Connection and ignore existing Historic records (which will be deleted)')
@@ -42,6 +43,7 @@ if (program.baseUris) {
 var mapper = new gtfs2lc.Connections({
   store: !program.store || program.store === 'undefined' ? 'MemStore' : program.store,
   format: !program.format || program.format === 'undefined' ? 'json' : program.format,
+  compressed: program.compressed,
   fresh: program.fresh,
   baseUris: baseUris
 });
