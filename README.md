@@ -56,6 +56,8 @@ We support other formats such as `csv` as well.
 
 For _big_ GTFS files, your memory may not be sufficient. Luckily, we’ve implemented a way to use your hard disk instead of your RAM. You can enable this with an option: `gtfs2lc /path/to/extracted/gtfs -f json --store LevelStore`.
 
+It may also be the case that your disk has limited storage space. In that case you may want to use the `--compressed` option.
+
 ### Step 5: Generate *Linked* Connections!
 
 When you download a new GTFS file, all identifiers in there might change and conflict with your previous export. Therefore, we need to think about a way to create global identifiers for the connections, trips, routes and stops in our system. As we are publishing our data on the Web, we will also use Web addresses for these global identifiers.
