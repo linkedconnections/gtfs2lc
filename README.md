@@ -24,7 +24,7 @@ npm install -g gtfs2lc
 If you haven’t yet picked a GTFS file you want to work with, different repositories exist. Our favorite ones:
 
 * [Transit.land’s feed registry](http://transit.land/feed-registry/)
-* [Transit Feeds](https://transitfeeds.com/)
+* [Mobility Database](https://mobilitydatabase.org)
 
 Yet, you may also directly ask your local public transport authority for a copy.
 
