@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-var program = require('commander'),
-  gtfs2lc = require('../lib/gtfs2lc.js'),
-  fs = require('fs'),
-  del = require('del');
+const program = require('commander');
+const gtfs2lc = require('../lib/gtfs2lc.js');
+const fs = require('fs');
+const del = require('del');
 
 console.error("GTFS to linked connections converter use --help to discover more functions");
 
@@ -30,7 +30,7 @@ if (program.path.endsWith('/')) {
   program.path = program.path.slice(0, -1);
 }
 
-var output = program.output || program.path;
+const output = program.output || program.path;
 if (output.endsWith('/')) {
   output = output.slice(0, -1);
 }
@@ -40,41 +40,38 @@ if (program.baseUris) {
   baseUris = JSON.parse(fs.readFileSync(program.baseUris, 'utf-8'));
 }
 
-var mapper = new gtfs2lc.Connections({
-  store: !program.store || program.store === 'undefined' ? 'MemStore' : program.store,
-  format: !program.format || program.format === 'undefined' ? 'json' : program.format,
-  compressed: program.compressed,
-  fresh: program.fresh,
-  baseUris: baseUris
-});
-
-var resultStream = null;
-mapper.resultStream(program.path, output, function (path) {
-  if (program.stream) {
-    fs.createReadStream(path).pipe(process.stdout);
-  } else {
-    console.error('Linked Connections successfully created at ' + path + '!');
-  }
-});
-
-process.on('SIGINT', function () {
-  console.error("\nSIGINT Received – Cleaning up");
-  if (resultStream) {
-    resultStream.end();
-  } else {
-    del([
+process.on('SIGINT', async () => {
+  console.error("\nSIGINT Received, cleaning up...");
+  await del(
+    [
       output + '/.stops',
       output + '/.routes',
       output + '/.trips',
       output + '/.services',
       output + '/raw_*'
     ],
-      { force: true })
-    .then(function () {
-      process.exit(0);
-    }, function (err) {
-      console.error(err);
-      process.exit(1);
-    });
-  }
+    { force: true }
+  );
+  console.error("Cleaned up!");
 });
+
+async function run() {
+  console.error(`Converting GTFS to Linked Connections...`);
+  const mapper = new gtfs2lc.Connections({
+    store: !program.store || program.store === 'undefined' ? 'MemStore' : program.store,
+    format: !program.format || program.format === 'undefined' ? 'json' : program.format,
+    compressed: program.compressed,
+    fresh: program.fresh,
+    baseUris: baseUris
+  });
+
+  const connectionsFile = await mapper.convert(program.path, output);
+
+  if (program.stream) {
+    fs.createReadStream(connectionsFile).pipe(process.stdout);
+  } else {
+    console.error(`Linked Connections successfully created at ${connectionsFile}`);
+  }
+}
+
+run();
