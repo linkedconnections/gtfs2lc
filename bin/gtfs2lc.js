@@ -1,77 +1,107 @@
 #!/usr/bin/env node
 
-const program = require('commander');
-const gtfs2lc = require('../lib/gtfs2lc.js');
-const fs = require('fs');
-const del = require('del');
+const { Command, InvalidArgumentError, Option } = require("commander");
+const fs = require("node:fs");
+const { readFile, readdir, rm } = require("node:fs/promises");
+const { once } = require("node:events");
+const path = require("node:path");
+const gtfs2lc = require("../lib/gtfs2lc.js");
+const packageJson = require("../package.json");
 
-console.error("GTFS to linked connections converter use --help to discover more functions");
+const program = new Command();
 
 program
-  .option('-f, --format <format>', 'Format of the output. Possibilities: csv, n-triples, turtle, json, jsonld, mongo (extended JSON format to be used with mongoimport) or mongold (default: json)')
-  .option('-b, --baseUris <baseUris>', 'Path to a file that describes the baseUris in json')
-  .option('-o, --output <output>', 'Path to the folder where the result file will be stored')
-  .option('-c, --compressed', 'Compress resulting connections file using gzip')
-  .option('-s, --stream', 'Get the connections as a stream on the standard output')
-  .option('-S, --store <store>', 'Store type: LevelStore (uses your disk to avoid that you run out of RAM) or MemStore (default)')
-  .option('--fresh', 'Make sure to convert all Connection and ignore existing Historic records (which will be deleted)')
-  .arguments('<path>', 'Path to sorted GTFS files')
-  .action(function (path) {
-    program.path = path;
-  })
-  .parse(process.argv);
+  .name("gtfs2lc")
+  .description("Convert an extracted GTFS feed to Linked Connections")
+  .version(packageJson.version)
+  .argument("<path>", "path to the extracted GTFS feed")
+  .option(
+    "-f, --format <format>",
+    "output format: csv, ntriples, turtle, json, jsonld, mongo, or mongold",
+    "json",
+  )
+  .option("-b, --base-uris <path>", "JSON file containing URI templates")
+  .addOption(new Option("--baseUris <path>").hideHelp())
+  .option("-o, --output <path>", "directory in which to store the result")
+  .option(
+    "-c, --compressed",
+    "keep the resulting connection file gzip-compressed",
+  )
+  .option(
+    "-s, --stream",
+    "write the resulting connection file to standard output",
+  )
+  .option("-S, --store <store>", "LevelStore or MemStore", "MemStore")
+  .option("--fresh", "discard historic conversion records")
+  .option(
+    "--workers <count>",
+    "number of conversion workers",
+    parsePositiveInteger,
+  )
+  .showHelpAfterError()
+  .action(run);
 
-if (!program.path) {
-  console.error('Please provide a path to the extracted (and sorted using gtfs2lc-sort) GTFS folder as the first argument');
-  process.exit(1);
+function parsePositiveInteger(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new InvalidArgumentError("must be a positive integer");
+  }
+  return parsed;
 }
 
-if (program.path.endsWith('/')) {
-  program.path = program.path.slice(0, -1);
-}
+async function run(sourceArgument, options) {
+  const sourcePath = path.resolve(sourceArgument);
+  const outputPath = path.resolve(options.output || sourcePath);
+  const baseUris = options.baseUris
+    ? JSON.parse(await readFile(options.baseUris, "utf8"))
+    : null;
 
-const output = program.output || program.path;
-if (output.endsWith('/')) {
-  output = output.slice(0, -1);
-}
+  const cleanup = async () => {
+    const entries = await readdir(outputPath, { withFileTypes: true }).catch(
+      () => [],
+    );
+    const temporary = entries
+      .filter(
+        (entry) =>
+          entry.name.startsWith("raw_") ||
+          entry.name.startsWith("connections_"),
+      )
+      .map((entry) =>
+        rm(path.join(outputPath, entry.name), { recursive: true, force: true }),
+      );
+    await Promise.all(temporary);
+  };
+  for (const signal of ["SIGINT", "SIGTERM"]) {
+    process.once(signal, () => {
+      cleanup()
+        .catch(console.error)
+        .finally(() => process.exit(128 + (signal === "SIGINT" ? 2 : 15)));
+    });
+  }
 
-var baseUris = null;
-if (program.baseUris) {
-  baseUris = JSON.parse(fs.readFileSync(program.baseUris, 'utf-8'));
-}
-
-process.on('SIGINT', async () => {
-  console.error("\nSIGINT Received, cleaning up...");
-  await del(
-    [
-      output + '/.stops',
-      output + '/.routes',
-      output + '/.trips',
-      output + '/.services',
-      output + '/raw_*'
-    ],
-    { force: true }
-  );
-  console.error("Cleaned up!");
-});
-
-async function run() {
-  console.error(`Converting GTFS to Linked Connections...`);
+  console.error("Converting GTFS to Linked Connections...");
   const mapper = new gtfs2lc.Connections({
-    store: !program.store || program.store === 'undefined' ? 'MemStore' : program.store,
-    format: !program.format || program.format === 'undefined' ? 'json' : program.format,
-    compressed: program.compressed,
-    fresh: program.fresh,
-    baseUris: baseUris
+    store: options.store,
+    format: options.format,
+    compressed: options.compressed,
+    fresh: options.fresh,
+    baseUris,
+    workers: options.workers,
   });
+  const connectionsFile = await mapper.convert(sourcePath, outputPath);
 
-  const connectionsFile = await mapper.convert(program.path, output);
-
-  if (program.stream) {
-    fs.createReadStream(connectionsFile).pipe(process.stdout);
+  if (options.stream) {
+    for await (const chunk of fs.createReadStream(connectionsFile)) {
+      if (!process.stdout.write(chunk)) await once(process.stdout, "drain");
+    }
   } else {
-    console.error(`Linked Connections successfully created at ${connectionsFile}`);
+    console.error(
+      `Linked Connections successfully created at ${connectionsFile}`,
+    );
   }
 }
 
-run();
+program.parseAsync().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});

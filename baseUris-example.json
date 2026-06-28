@@ -4,6 +4,6 @@
   "trip": "http://example.org/trips/{trips.trip_id}",
   "connection": "http://example.org/connections/{routes.route_id}/{trips.trip_id}/{connection.departureStop}/{tripStartTime}/",
   "resolve": {
-      "tripStartTime": "format(trips.startTime, 'yyyyMMdd\\'T\\'HHmm');"
+    "tripStartTime": "format(trips.startTime, 'yyyyMMdd\\'T\\'HHmm');"
   }
 }

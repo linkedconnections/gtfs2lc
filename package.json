@@ -1,22 +1,42 @@
 {
   "name": "gtfs2lc",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "description": "Mapping script from gtfs to (linked) connections",
   "main": "lib/gtfs2lc.js",
+  "exports": {
+    ".": "./lib/gtfs2lc.js",
+    "./lib/*": "./lib/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "scripts/build-sncb.js",
+    "baseUris-example.json",
+    "LICENSE",
+    "README.md"
+  ],
   "bin": {
     "gtfs2lc": "./bin/gtfs2lc.js",
-    "gtfs2lc-clean": "./bin/gtfs2lc-clean.sh",
-    "linkedconnections-joinandsort": "./bin/linkedconnections-sort.sh"
+    "gtfs2lc-clean": "./bin/gtfs2lc-clean.js",
+    "linkedconnections-joinandsort": "./bin/linkedconnections-sort.js"
   },
   "scripts": {
-    "test": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --runInBand",
-    "test-ci": "rm -rf test/sample-feed/ ; cp -r test/sample-feed-test/ test/sample-feed/ ; ./bin/gtfs2lc.js -s -f jsonld test/sample-feed > test/sample-feed/connections-notjoined.nldjsonld ; ./bin/linkedconnections-sort.sh test/sample-feed/connections-notjoined.nldjsonld > test/sample-feed/connections.nldjsonld ; rm test/sample-feed/linkedConnections.json ; jest --ci --runInBand --coverage",
-    "coveralls": "jest --coverage && coveralls < coverage/lcov.info"
+    "check": "npm run lint && npm run format:check && npm run typecheck",
+    "build:sncb": "node scripts/build-sncb.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "pretest": "node scripts/prepare-tests.js",
+    "test": "jest --runInBand",
+    "test-ci": "jest --ci --runInBand --coverage",
+    "typecheck": "tsc --project jsconfig.json"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/LinkedConnections/gtfs2lc.git"
+    "url": "git+https://github.com/LinkedConnections/gtfs2lc.git"
   },
+  "homepage": "https://github.com/LinkedConnections/gtfs2lc#readme",
   "keywords": [
     "GTFS",
     "Linked Connections",
@@ -24,22 +44,39 @@
   ],
   "author": "Pieter Colpaert",
   "license": "MIT",
+  "engines": {
+    "node": ">=24 <25 || >=26 <27"
+  },
+  "packageManager": "npm@11.12.1",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "bugs": {
     "url": "https://github.com/LinkedConnections/gtfs2lc/issues"
   },
   "dependencies": {
-    "commander": "^4.1.1",
-    "date-fns": "^2.30.0",
-    "del": "^5.1.0",
-    "fast-csv": "^4.3.6",
-    "JSONStream": "^1.3.5",
-    "level": "^8.0.0",
-    "n3": "^1.17.0",
-    "stream-json": "^1.8.0",
+    "commander": "^15.0.0",
+    "date-fns": "^4.4.0",
+    "fast-csv": "^5.0.7",
+    "level": "^10.0.0",
+    "rdf-data-factory": "^2.0.2",
+    "rdf-parser-ts": "^0.2.6",
+    "unzipper": "^0.12.5",
     "uri-templates": "^0.2.0"
   },
   "devDependencies": {
-    "coveralls": "^3.1.1",
-    "jest": "^29.6.1"
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^24.13.2",
+    "eslint": "^9.39.4",
+    "globals": "^16.5.0",
+    "jest": "^30.4.2",
+    "prettier": "^3.9.1",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "^4.3.0"
+    }
   }
 }
