@@ -1,0 +1,5 @@
+coverage
+node_modules
+test/sample-feed
+test/sample-feed-test
+package-lock.json
