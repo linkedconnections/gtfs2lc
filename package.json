@@ -45,12 +45,7 @@
   "author": "Pieter Colpaert",
   "license": "MIT",
   "engines": {
-    "node": ">=24 <25 || >=26 <27"
-  },
-  "packageManager": "npm@11.12.1",
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "node": ">=24"
   },
   "bugs": {
     "url": "https://github.com/LinkedConnections/gtfs2lc/issues"
@@ -62,6 +57,7 @@
     "level": "^10.0.0",
     "rdf-data-factory": "^2.0.2",
     "rdf-parser-ts": "^0.2.6",
+    "rdfjs-jelly": "^0.1.0",
     "unzipper": "^0.12.5",
     "uri-templates": "^0.2.0"
   },
