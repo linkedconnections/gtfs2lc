@@ -218,7 +218,7 @@ async function main() {
     await constrainCalendar(feedDirectory, startDate, endDate);
     await runConverter(feedDirectory, outputDirectory, {
       compressed: process.env.SNCB_COMPRESSED === "1",
-      format: process.env.SNCB_FORMAT || "jsonld",
+      format: process.env.SNCB_FORMAT || "jelly",
       timeZone,
       workers: process.env.SNCB_WORKERS,
     });

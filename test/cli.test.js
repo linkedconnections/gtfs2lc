@@ -5,6 +5,7 @@ const path = require("node:path");
 const { promisify } = require("node:util");
 const { gunzipSync } = require("node:zlib");
 const { Parser } = require("rdf-parser-ts");
+const { Parser: JellyParser } = require("rdfjs-jelly");
 
 const execFileAsync = promisify(execFile);
 const cli = path.resolve(__dirname, "../bin/gtfs2lc.js");
@@ -29,18 +30,25 @@ test("accepts paths containing spaces and trailing separators", async () => {
   await execFileAsync(process.execPath, [
     cli,
     "--fresh",
+    "--compressed",
     "--workers",
     "2",
     "--output",
     `${output}${path.sep}`,
     `${feed}${path.sep}`,
   ]);
-  const firstLine = (
-    await readFile(path.join(output, "linkedConnections.json"), "utf8")
-  )
-    .split("\n")
-    .find(Boolean);
-  expect(JSON.parse(firstLine).arrivalStop.stop_id).toBeDefined();
+  const contents = gunzipSync(
+    await readFile(path.join(output, "linkedConnections.jelly.gz")),
+  );
+  const messages = new JellyParser().parseMessages(contents);
+  expect(messages.length).toBeGreaterThan(0);
+  expect(
+    messages.every(
+      (message) =>
+        message.length > 0 &&
+        new Set(message.map((quad) => quad.subject.value)).size === 1,
+    ),
+  ).toBe(true);
 });
 
 test("returns and retains the gzip filename for compressed output", async () => {
@@ -73,6 +81,7 @@ test("rejects unsupported formats", async () => {
 });
 
 test.each([
+  ["jelly", "jelly", null],
   ["csv", "csv", '"departureStop"'],
   ["ntriples", "nt", 'VERSION "1.2-messages"'],
   ["mongo", "json", '"$date"'],
@@ -91,9 +100,14 @@ test.each([
   ]);
   const contents = await readFile(
     path.join(output, `linkedConnections.${extension}`),
-    "utf8",
+    format === "jelly" ? undefined : "utf8",
   );
-  expect(contents).toContain(marker);
+  if (marker) expect(contents).toContain(marker);
+  if (format === "jelly") {
+    const messages = new JellyParser().parseMessages(contents);
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages.every((message) => message.length > 0)).toBe(true);
+  }
   if (format === "ntriples") {
     const messages = new Parser({ format: "N-Triples" }).parseMessages(
       contents,

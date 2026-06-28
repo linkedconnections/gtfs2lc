@@ -10,7 +10,7 @@ const exec = util.promisify(cp.exec);
 
 beforeAll(async () => {
   await exec(
-    `./bin/gtfs2lc.js -s --fresh test/sample-feed > test/sample-feed/formats.json`,
+    `./bin/gtfs2lc.js -s -f json --fresh test/sample-feed > test/sample-feed/formats.json`,
   );
 });
 

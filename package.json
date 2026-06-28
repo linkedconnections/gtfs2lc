@@ -18,6 +18,7 @@
   ],
   "bin": {
     "gtfs2lc": "./bin/gtfs2lc.js",
+    "gtfs2lc-build": "./bin/gtfs2lc-build.js",
     "gtfs2lc-clean": "./bin/gtfs2lc-clean.js",
     "linkedconnections-joinandsort": "./bin/linkedconnections-sort.js"
   },

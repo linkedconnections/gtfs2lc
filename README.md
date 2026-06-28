@@ -49,7 +49,7 @@ Successfully finished the previous steps? Then you can now generate actual depar
 gtfs2lc /path/to/extracted/gtfs -f json
 ```
 
-We support other formats such as `csv` as well.
+The default output is a binary Jelly-RDF stream (`linkedConnections.jelly`). We support other formats such as `jsonld`, `turtle`, `ntriples`, and `csv` through the `--format` option.
 
 The `turtle` and `ntriples` formats are RDF 1.2 Message Logs. Every Connection is serialized as one RDF Message, with its quads kept together behind `@message .` or `MESSAGE` delimiters. The output uses RDF/JS terms and [`rdf-parser-ts`](https://github.com/pietercolpaert/rdf-parser.ts) for serialization and parsing.
 
@@ -112,15 +112,33 @@ npm test
 
 ### SNCB/NMBS weekly build
 
-Run `npm run build:sncb` to download the latest SNCB/NMBS GTFS feed and generate JSON-LD connections for seven service days, starting today in the `Europe/Brussels` timezone. Results are written to `build/sncb/output`.
+Run `npm run build:sncb` to download the latest SNCB/NMBS GTFS feed and generate Jelly-RDF connections for seven service days, starting today in the `Europe/Brussels` timezone. Results are written to `build/sncb/output`.
 
 The build can be reproduced or customized with environment variables:
 
 ```bash
-SNCB_START_DATE=2026-06-28 SNCB_DAYS=7 SNCB_FORMAT=jsonld npm run build:sncb
+SNCB_START_DATE=2026-06-28 SNCB_DAYS=7 SNCB_FORMAT=jelly npm run build:sncb
 ```
 
 `SNCB_BUILD_DIR`, `SNCB_GTFS_URL`, `SNCB_TIMEZONE`, `SNCB_WORKERS`, and `SNCB_COMPRESSED=1` are also supported.
+
+### Discover and build a Mobility Database feed
+
+`gtfs2lc-build` searches the [Mobility Database API](https://mobilitydata.github.io/mobility-feed-api/SwaggerUI/index.html), lets you select a GTFS Schedule feed, discovers its publisher or hosted ZIP URL, and builds the dataset. For example:
+
+```bash
+MOBILITYDATABASE_REFRESH_TOKEN=... gtfs2lc-build "De Lijn"
+```
+
+The first run interactively configures stable public URI templates. It explains the collision risks, recommends agency-scoped identifiers, includes service dates in trip identifiers, includes `stop_sequence` in Connection identifiers, and previews representative identifiers before saving. The resulting file is named from the agency and Mobility Database key—for example, `de-lijn-mdb-684.json`—and can also be passed directly to `gtfs2lc --base-uris`.
+
+Later runs reuse saved configurations without querying Mobility Database:
+
+```bash
+gtfs2lc-build mdb-684
+```
+
+The API accepts `MOBILITYDATABASE_ACCESS_TOKEN` directly or exchanges `MOBILITYDATABASE_REFRESH_TOKEN` for a one-hour access token. If neither is set, the command securely prompts for the refresh token and never saves it. Use `--help` for output, format, compression, worker, and configuration-directory options.
 
 ## How it works (for contributors)
 
