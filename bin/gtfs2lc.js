@@ -18,7 +18,7 @@ program
   .option(
     "-f, --format <format>",
     "output format: jelly, csv, ntriples, turtle, json, jsonld, mongo, or mongold",
-    "jelly",
+    "json",
   )
   .option("-b, --base-uris <path>", "JSON file containing URI templates")
   .addOption(new Option("--baseUris <path>").hideHelp())

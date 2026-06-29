@@ -45,7 +45,7 @@ program
     ".",
   )
   .option("--output <path>", "output directory")
-  .option("--format <format>", "gtfs2lc output format", "jelly")
+  .option("--format <format>", "gtfs2lc output format", "json")
   .option("--compressed", "gzip the generated dataset")
   .option("--workers <count>", "number of conversion workers", positiveInteger)
   .showHelpAfterError()

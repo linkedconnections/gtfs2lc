@@ -1,7 +1,11 @@
 const { mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const path = require("node:path");
-const { constrainCalendar, parseDate } = require("../scripts/build-sncb");
+const {
+  constrainCalendar,
+  parseArguments,
+  parseDate,
+} = require("../scripts/build-sncb");
 
 let directory;
 
@@ -42,4 +46,10 @@ test("limits SNCB service calendars to the requested inclusive range", async () 
 
 test("rejects invalid start dates", () => {
   expect(() => parseDate("2024-02-30")).toThrow("Invalid date");
+});
+
+test("uses the requested SNCB output format", () => {
+  expect(
+    parseArguments(["--format", "turtle"], { SNCB_FORMAT: "json" }),
+  ).toMatchObject({ format: "turtle" });
 });

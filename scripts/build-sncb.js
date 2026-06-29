@@ -15,6 +15,7 @@ const path = require("node:path");
 const { Readable } = require("node:stream");
 const { pipeline, finished } = require("node:stream/promises");
 const { spawn } = require("node:child_process");
+const { parseArgs } = require("node:util");
 const csv = require("fast-csv");
 const unzipper = require("unzipper");
 
@@ -22,6 +23,18 @@ const defaultUrl =
   "https://gtfs.flatturtle.cloud/sncb-nmbs/_latest/sncb-nmbs-gtfs.zip";
 const defaultTimeZone = "Europe/Brussels";
 const root = path.resolve(__dirname, "..");
+
+function parseArguments(arguments_, environment = process.env) {
+  return parseArgs({
+    args: arguments_,
+    options: {
+      format: {
+        type: "string",
+        default: environment.SNCB_FORMAT || "json",
+      },
+    },
+  }).values;
+}
 
 function parsePositiveInteger(value, name) {
   const parsed = Number.parseInt(value, 10);
@@ -189,7 +202,7 @@ async function runConverter(feedDirectory, outputDirectory, options) {
   });
 }
 
-async function main() {
+async function main(options = parseArguments(process.argv.slice(2))) {
   const timeZone = process.env.SNCB_TIMEZONE || defaultTimeZone;
   const startValue = process.env.SNCB_START_DATE || todayInTimeZone(timeZone);
   const days = parsePositiveInteger(process.env.SNCB_DAYS || "7", "SNCB_DAYS");
@@ -218,7 +231,7 @@ async function main() {
     await constrainCalendar(feedDirectory, startDate, endDate);
     await runConverter(feedDirectory, outputDirectory, {
       compressed: process.env.SNCB_COMPRESSED === "1",
-      format: process.env.SNCB_FORMAT || "jelly",
+      format: options.format,
       timeZone,
       workers: process.env.SNCB_WORKERS,
     });
@@ -235,4 +248,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { constrainCalendar, parseDate };
+module.exports = { constrainCalendar, parseArguments, parseDate };
