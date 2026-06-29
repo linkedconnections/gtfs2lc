@@ -31,6 +31,8 @@ test("accepts paths containing spaces and trailing separators", async () => {
     cli,
     "--fresh",
     "--compressed",
+    "--format",
+    "jelly",
     "--workers",
     "2",
     "--output",
