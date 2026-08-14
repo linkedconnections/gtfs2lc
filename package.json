@@ -1,5 +1,6 @@
 {
   "name": "gtfs2lc",
+  "version": "2.4.1",
   "description": "Mapping script from gtfs to (linked) connections",
   "main": "lib/gtfs2lc.js",
   "exports": {
