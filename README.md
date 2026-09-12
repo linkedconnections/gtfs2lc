@@ -49,15 +49,34 @@ Successfully finished the previous steps? Then you can now generate actual depar
 gtfs2lc /path/to/extracted/gtfs -f json
 ```
 
-The default output is a binary Jelly-RDF stream (`linkedConnections.jelly`). We support other formats such as `jsonld`, `turtle`, `ntriples`, and `csv` through the `--format` option.
+The default output is a binary Jelly-RDF stream (`linkedConnections.jelly`). We support other formats such as `jsonld`, `turtle`, `ntriples`, `csv`, and `arrow` through the `--format` option.
 
 The `turtle` and `ntriples` formats are RDF 1.2 Message Logs. Every Connection is serialized as one RDF Message, with its quads kept together behind `@message .` or `MESSAGE` delimiters. The output uses RDF/JS terms and [`rdf-parser-ts`](https://github.com/pietercolpaert/rdf-parser.ts) for serialization and parsing.
+
+`arrow` is a different kind of format: instead of an RDF graph, it writes a columnar, typed-array [Apache Arrow](https://arrow.apache.org/) dataset with the minimal fields a [Connection Scan Algorithm](https://arxiv.org/abs/1703.05997) route planner needs, sorted by departure time and paged into Arrow RecordBatches a browser can stream and scan directly. See [`arrowconnections.md`](arrowconnections.md) for the full schema, and [`public/index.html`](public/index.html) for a working in-browser route planner built on top of it.
 
 For _big_ GTFS files, your memory may not be sufficient. Luckily, we’ve implemented a way to use your hard disk instead of your RAM. You can enable this with an option: `gtfs2lc /path/to/extracted/gtfs -f json --store LevelStore`.
 
 Conversion uses up to eight workers by default. Use `--workers <count>` to set an explicit limit.
 
-It may also be the case that your disk has limited storage space. In that case you may want to use the `--compressed` option.
+It may also be the case that your disk has limited storage space. In that case you may want to use the `--compressed` option. **For the RDF formats especially, this matters far more than it sounds:** Jelly-RDF, Turtle, and N-Triples are all just as gzip-compressible as any other text-adjacent format, but `gtfs2lc` does not gzip the final merged file unless you ask it to. Skipping `--compressed` on a large feed can mean shipping a file 10-15x larger than it needs to be, for free, with no other change. See [Choosing a format](#choosing-a-format) below for measurements.
+
+### Choosing a format
+
+There is no single "best" format — it depends on what you're going to do with the output. These numbers come from converting a real, ~150-day national railway GTFS feed (SNCB/NMBS) and measuring a 200,000-connection (2,000,000-quad) sample; exact ratios will vary with your feed's identifier lengths and stop/trip/route cardinality, but the relative ordering is representative.
+
+| Format                | Use it when…                                                                                                  | Raw size                                                   | Gzipped size                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `jelly` (default)     | You want RDF and can compress the file yourself (`--compressed`, or gzip downstream)                          | 27.5 bytes/quad                                            | **1.95 bytes/quad**                                                                   |
+| `turtle` / `ntriples` | You want a human-readable or maximally interoperable RDF serialization, and don't mind a larger file          | 250.8 bytes/quad                                           | 4.65 bytes/quad                                                                       |
+| `jsonld` / `csv`      | You're feeding a JSON- or spreadsheet-oriented tool downstream                                                | similar order of magnitude to `ntriples`, format-dependent | —                                                                                     |
+| `arrow`               | You're building a route planner (browser or otherwise) that needs to scan connections directly, not parse RDF | ~25-27 bytes/connection (7 columns, not per-quad)          | typically smaller still, and rarely worth compressing further given how it's consumed |
+
+The practical takeaways from the investigation that produced the `arrow` format (see `arrowconnections.md` for the full story):
+
+1. **Always pass `--compressed` for the RDF formats**, unless something downstream already compresses the file for you. It is the single biggest size lever available — bigger than any format choice below it.
+2. Jelly-RDF, once compressed, is already ~2.4-2.7x more compact than compressed Turtle/N-Triples — the binary RDF format is doing its job. If you need RDF, prefer `jelly` and compress it.
+3. `arrow` isn't "RDF but smaller" — it's a different shape entirely, storing GTFS-native integer indices rather than IRIs and RDF terms, with no per-row object allocation. Reach for it specifically when the consumer is a route-planning algorithm, not a Linked Data client.
 
 ### Step 5: Generate _Linked_ Connections!
 
@@ -74,6 +93,18 @@ gtfs2lc /path/to/extracted/gtfs -f jsonld -b baseUris.json
 ```
 
 That’s it! Want to serve your Linked Connections over HTTP? Take a look at our work over here: [The Linked Connection’s server](https://github.com/julianrojas87/linked-connections-server) (WIP)
+
+### Step 6: Plan a route in the browser (Arrow format only)
+
+If you generated `arrow` output, `public/index.html` is a self-contained, dependency-free (besides an `apache-arrow` CDN import) route planner: it runs a multi-criteria Profile Connection Scan Algorithm (Pareto-optimal over arrival time and transfers, like [planner.js](https://planner.js.org)) directly against `linkedConnections.arrow`, entirely client-side, returning up to six alternative journeys.
+
+```bash
+gtfs2lc /path/to/extracted/gtfs -f arrow -o public-data
+cp public-data/manifest.json public-data/*.arrow public/
+npx serve public
+```
+
+(`fetch()` needs the files served over HTTP, not opened as `file://`.) Open the served page, search for an origin and destination stop, pick a departure time, and it plans the journey in memory, without any backend. See `arrowconnections.md` for what the format looks like and why it's shaped this way.
 
 ### More options
 

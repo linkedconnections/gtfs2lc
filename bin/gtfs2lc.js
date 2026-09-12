@@ -17,7 +17,7 @@ program
   .argument("<path>", "path to the extracted GTFS feed")
   .option(
     "-f, --format <format>",
-    "output format: jelly, csv, ntriples, turtle, json, jsonld, mongo, or mongold",
+    "output format: jelly, arrow, csv, ntriples, turtle, json, jsonld, mongo, or mongold",
     "json",
   )
   .option("-b, --base-uris <path>", "JSON file containing URI templates")

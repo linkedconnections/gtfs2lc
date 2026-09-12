@@ -124,3 +124,52 @@ test.each([
     ).toBe(true);
   }
 });
+
+test("creates valid arrow output", async () => {
+  await execFileAsync(process.execPath, [
+    cli,
+    "--format",
+    "arrow",
+    "--fresh",
+    "--workers",
+    "2",
+    "--output",
+    output,
+    feed,
+  ]);
+
+  const manifest = JSON.parse(
+    await readFile(path.join(output, "manifest.json"), "utf8"),
+  );
+  expect(manifest.format).toBe("gtfs2lc-arrow-connections");
+  expect(manifest.files.connections).toBe("linkedConnections.arrow");
+  expect(manifest.counts.stops).toBeGreaterThan(0);
+
+  const { Table, RecordBatchStreamReader } = require("apache-arrow");
+  const loadTable = async (name) =>
+    new Table(
+      RecordBatchStreamReader.from(await readFile(path.join(output, name))),
+    );
+
+  const stops = await loadTable(manifest.files.stops);
+  const trips = await loadTable(manifest.files.trips);
+  const connections = await loadTable(manifest.files.connections);
+
+  expect(connections.numRows).toBeGreaterThan(0);
+
+  let sorted = true;
+  for (let row = 1; row < connections.numRows; row += 1) {
+    if (
+      connections.get(row).departureTime <
+      connections.get(row - 1).departureTime
+    ) {
+      sorted = false;
+      break;
+    }
+  }
+  expect(sorted).toBe(true);
+
+  const first = connections.get(0);
+  expect(stops.get(first.departureStopIdx).stopId).toBeTruthy();
+  expect(trips.get(first.tripIdx).tripId).toBeTruthy();
+});

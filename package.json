@@ -11,8 +11,10 @@
   "files": [
     "bin",
     "lib",
+    "public",
     "scripts/build-sncb.js",
     "baseUris-example.json",
+    "arrowconnections.md",
     "LICENSE",
     "README.md"
   ],
@@ -52,6 +54,7 @@
     "url": "https://github.com/LinkedConnections/gtfs2lc/issues"
   },
   "dependencies": {
+    "apache-arrow": "^21.2.0",
     "commander": "^15.0.0",
     "date-fns": "^4.4.0",
     "fast-csv": "^5.0.7",
