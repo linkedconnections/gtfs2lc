@@ -96,15 +96,27 @@ That’s it! Want to serve your Linked Connections over HTTP? Take a look at our
 
 ### Step 6: Plan a route in the browser (Arrow format only)
 
-If you generated `arrow` output, `public/index.html` is a self-contained, dependency-free (besides an `apache-arrow` CDN import) route planner: it runs a multi-criteria Profile Connection Scan Algorithm (Pareto-optimal over arrival time and transfers, like [planner.js](https://planner.js.org)) directly against `linkedConnections.arrow`, entirely client-side, returning up to six alternative journeys.
+If you generated `arrow` output, `public/index.html` is a self-contained, dependency-free (besides an `apache-arrow` CDN import) route planner: it runs a multi-criteria Profile Connection Scan Algorithm (Pareto-optimal over arrival time and transfers, like [planner.js](https://planner.js.org)) directly against your `arrow` connections, entirely client-side, returning up to six alternative journeys.
 
 ```bash
-gtfs2lc /path/to/extracted/gtfs -f arrow -o public-data
-cp public-data/manifest.json public-data/*.arrow public/
+gtfs2lc /path/to/extracted/gtfs -f arrow -o public/my-feed
 npx serve public
 ```
 
-(`fetch()` needs the files served over HTTP, not opened as `file://`.) Open the served page, search for an origin and destination stop, pick a departure time, and it plans the journey in memory, without any backend. See `arrowconnections.md` for what the format looks like and why it's shaped this way.
+(`fetch()` needs the files served over HTTP, not opened as `file://`.) Open the served page, search for an origin and destination stop, pick a departure time, and it plans the journey in memory, without any backend. See `arrowconnections.md` for what the format looks like and why it's shaped this way — in particular, `arrow` output is no longer one file: connections are partitioned geospatially and by month, and the browser fetches only the partitions a given journey actually needs (`--regions <count>` controls how many geospatial regions to create; omit it, or use `1`, to disable geospatial partitioning and keep just the monthly split).
+
+#### Multiple networks at once
+
+`public/index.html` can search across several independently-generated feeds — one per transit operator, say — each as its own subdirectory:
+
+```bash
+gtfs2lc nmbs-gtfs -f arrow --regions 8 -o public/nmbs
+gtfs2lc delijn-gtfs -f arrow --regions 8 -o public/delijn
+npx gtfs2lc-sources-index public   # (re)writes public/sources.json
+npx serve public
+```
+
+The page lets people check/uncheck which sources to search (defaulting to all of them), and fetches every region/month file a query needs across the selected sources concurrently. A journey still has to start and end within one source, though — there's no walking-transfer data connecting stops across different operators yet; see `arrowconnections.md`'s Non-goals.
 
 ### More options
 

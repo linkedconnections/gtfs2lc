@@ -22,6 +22,7 @@
     "gtfs2lc": "./bin/gtfs2lc.js",
     "gtfs2lc-build": "./bin/gtfs2lc-build.js",
     "gtfs2lc-clean": "./bin/gtfs2lc-clean.js",
+    "gtfs2lc-sources-index": "./bin/gtfs2lc-sources-index.js",
     "linkedconnections-joinandsort": "./bin/linkedconnections-sort.js"
   },
   "scripts": {

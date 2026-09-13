@@ -158,6 +158,28 @@
         cursor: pointer;
         margin-bottom: 16px;
       }
+      .sources {
+        margin-bottom: 16px;
+      }
+      .source-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        font-weight: 400;
+        color: var(--text);
+        margin-bottom: 6px;
+        cursor: pointer;
+      }
+      .source-toggle input {
+        width: auto;
+        margin: 0;
+        cursor: pointer;
+      }
+      .source-toggle .source-count {
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
       #status {
         font-size: 0.82rem;
         color: var(--muted);
@@ -252,7 +274,8 @@
         <a href="https://planner.js.org" target="_blank" rel="noopener"
           >planner.js</a
         >
-        — entirely in your browser, over the <code>arrow</code>-format output of
+        — entirely in your browser, over one or more geospatially and monthly
+        partitioned <code>arrow</code>-format datasets written by
         <a
           href="https://github.com/LinkedConnections/gtfs2lc"
           target="_blank"
@@ -263,6 +286,8 @@
       </p>
 
       <form class="panel" id="journey-form">
+        <div class="sources" id="source-list"></div>
+
         <div class="field">
           <label for="origin-input">From</label>
           <input
@@ -316,17 +341,23 @@
         RecordBatchReader,
       } from "https://cdn.jsdelivr.net/npm/apache-arrow@21.2.0/+esm";
 
+      // Every journey needs to depart somewhere and arrive within this
+      // horizon — see planJourneysForSource. Also bounds how many months
+      // of a source's partitioned connections a query can ever touch.
+      const MAX_SCAN_HORIZON_SECONDS = 3 * 24 * 3600; // 3 days
+      const MAX_DISPLAYED_OPTIONS = 6;
+      // How many rounds of "fetch what we have, discover the regions the
+      // data we just fetched actually touches, fetch those too" to run
+      // before giving up widening and just answering with what's loaded.
+      // See buildConnectionsPool.
+      const MAX_WIDENING_ROUNDS = 3;
+
       const state = {
-        stops: null, // { id, name, lat, lon, parentIdx: Int32Array }
-        trips: null, // { id: string[], routeIdx: Int32Array, headsign: string[] }
-        routes: null, // { id: string[], shortName: string[], longName: string[] }
-        manifest: null,
-        // childrenOf: Map<stationIdx, childIdx[]>; searchable: idx[] with no
-        // parent_station of their own (real stations, plus stops with no
-        // hierarchy at all) — see buildStopFamily().
-        stopFamily: null,
-        originIdx: null,
-        destinationIdx: null,
+        // One entry per discovered/loaded source: { id, name, baseUrl,
+        // manifest, stops, trips, routes, stopFamily, connectionsCache }.
+        sources: [],
+        origin: null, // { sourceId, stopIdx } | null
+        destination: null,
       };
 
       const el = (id) => document.getElementById(id);
@@ -342,8 +373,8 @@
         // Force a real network request every time: this page is meant to
         // be reloaded against locally-regenerated data (a new gtfs2lc run
         // writes the same file names), and a browser HTTP cache serving a
-        // stale, previously-fetched version of e.g. linkedConnections.arrow
-        // looks exactly like "no route found" with no error anywhere.
+        // stale, previously-fetched version of a connections file looks
+        // exactly like "no route found" with no error anywhere.
         const response = await fetch(url, { cache: "no-store" });
         if (!response.ok)
           throw new Error(`Could not fetch ${url}: HTTP ${response.status}`);
@@ -351,8 +382,7 @@
       }
 
       async function loadSmallTable(url) {
-        const table = await tableFromIPC(await fetchResponse(url));
-        return table;
+        return tableFromIPC(await fetchResponse(url));
       }
 
       function columnToStringArray(table, name) {
@@ -366,45 +396,48 @@
         return table.getChild(name).toArray();
       }
 
-      // `parentIdx` was added to stops.arrow after this format's first
-      // release. A stops.arrow written by an older gtfs2lc has no such
-      // column — getChild() returns null rather than throwing — so treat
-      // that as "no station hierarchy known" instead of crashing the page.
+      // `parentIdx`/`regionIdx` were added to stops.arrow after this
+      // format's first releases. An older stops.arrow has no such column —
+      // getChild() returns null rather than throwing — so treat that as
+      // "no station hierarchy / no partitioning known" instead of crashing.
       function columnToTypedArrayOrDefault(table, name, fallbackValue) {
         const vector = table.getChild(name);
         if (vector) return vector.toArray();
         console.warn(
-          `stops.arrow has no '${name}' column — regenerate with a newer ` +
-            "gtfs2lc to group platforms under their station.",
+          `stops.arrow has no '${name}' column — regenerate with a newer gtfs2lc.`,
         );
         return new Int32Array(table.numRows).fill(fallbackValue);
       }
 
-      async function loadDictionaries(manifest) {
-        const [stopsTable, tripsTable, routesTable] = await Promise.all([
-          loadSmallTable(manifest.files.stops),
-          loadSmallTable(manifest.files.trips),
-          loadSmallTable(manifest.files.routes),
-        ]);
+      /**
+       * Discovers which sources (independently-generated gtfs2lc datasets,
+       * e.g. one per operator) are available. A `sources.json` next to this
+       * page lists them; if there is none, this page falls back to
+       * treating its own directory as the one and only source, so existing
+       * single-source setups keep working unchanged.
+       */
+      async function discoverSources() {
+        try {
+          const response = await fetch("sources.json", { cache: "no-store" });
+          if (response.ok) {
+            const data = await response.json();
+            return data.sources.map((source) => ({
+              id: source.id,
+              name: source.name || source.id,
+              manifestUrl: source.manifest,
+            }));
+          }
+        } catch {
+          // fall through to the single-source default below
+        }
+        return [
+          { id: "default", name: "This feed", manifestUrl: "manifest.json" },
+        ];
+      }
 
-        state.stops = {
-          id: columnToStringArray(stopsTable, "stopId"),
-          name: columnToStringArray(stopsTable, "name"),
-          lat: columnToTypedArray(stopsTable, "lat"),
-          lon: columnToTypedArray(stopsTable, "lon"),
-          parentIdx: columnToTypedArrayOrDefault(stopsTable, "parentIdx", -1),
-        };
-        state.trips = {
-          id: columnToStringArray(tripsTable, "tripId"),
-          routeIdx: columnToTypedArray(tripsTable, "routeIdx"),
-          headsign: columnToStringArray(tripsTable, "headsign"),
-        };
-        state.routes = {
-          id: columnToStringArray(routesTable, "routeId"),
-          shortName: columnToStringArray(routesTable, "shortName"),
-          longName: columnToStringArray(routesTable, "longName"),
-        };
-        state.stopFamily = buildStopFamily(state.stops);
+      function baseUrlOf(manifestUrl) {
+        const slash = manifestUrl.lastIndexOf("/");
+        return slash === -1 ? "" : manifestUrl.slice(0, slash + 1);
       }
 
       /**
@@ -435,12 +468,12 @@
        * descendant stop, so a journey can depart from or arrive at any of
        * a station's platforms, not just the station row itself.
        */
-      function expandStopFamily(idx) {
+      function expandStopFamily(source, idx) {
         const expanded = new Set([idx]);
         const queue = [idx];
         while (queue.length > 0) {
           const current = queue.pop();
-          const children = state.stopFamily.childrenOf.get(current);
+          const children = source.stopFamily.childrenOf.get(current);
           if (!children) continue;
           for (const child of children) {
             if (!expanded.has(child)) {
@@ -452,30 +485,111 @@
         return expanded;
       }
 
+      async function loadSource(descriptor) {
+        const manifest = await (
+          await fetchResponse(descriptor.manifestUrl)
+        ).json();
+        const baseUrl = baseUrlOf(descriptor.manifestUrl);
+
+        const [stopsTable, tripsTable, routesTable] = await Promise.all([
+          loadSmallTable(baseUrl + manifest.files.stops),
+          loadSmallTable(baseUrl + manifest.files.trips),
+          loadSmallTable(baseUrl + manifest.files.routes),
+        ]);
+
+        const stops = {
+          id: columnToStringArray(stopsTable, "stopId"),
+          name: columnToStringArray(stopsTable, "name"),
+          lat: columnToTypedArray(stopsTable, "lat"),
+          lon: columnToTypedArray(stopsTable, "lon"),
+          parentIdx: columnToTypedArrayOrDefault(stopsTable, "parentIdx", -1),
+          regionIdx: columnToTypedArrayOrDefault(stopsTable, "regionIdx", 0),
+        };
+        const trips = {
+          id: columnToStringArray(tripsTable, "tripId"),
+          routeIdx: columnToTypedArray(tripsTable, "routeIdx"),
+          headsign: columnToStringArray(tripsTable, "headsign"),
+        };
+        const routes = {
+          id: columnToStringArray(routesTable, "routeId"),
+          shortName: columnToStringArray(routesTable, "shortName"),
+          longName: columnToStringArray(routesTable, "longName"),
+        };
+
+        return {
+          id: descriptor.id,
+          name: descriptor.name,
+          baseUrl,
+          manifest,
+          stops,
+          trips,
+          routes,
+          stopFamily: buildStopFamily(stops),
+          connectionsCache: new Map(), // "region|month" -> row[]
+        };
+      }
+
+      function renderSourceCheckboxes() {
+        const container = el("source-list");
+        container.innerHTML = "";
+        for (const source of state.sources) {
+          const label = document.createElement("label");
+          label.className = "source-toggle";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = true;
+          checkbox.dataset.sourceId = source.id;
+          label.appendChild(checkbox);
+          const text = document.createElement("span");
+          text.textContent = source.name;
+          label.appendChild(text);
+          const count = document.createElement("span");
+          count.className = "source-count";
+          count.textContent = `(${source.manifest.counts.stops.toLocaleString()} stops)`;
+          label.appendChild(count);
+          container.appendChild(label);
+        }
+      }
+
+      function activeSources() {
+        const checked = new Set(
+          [...el("source-list").querySelectorAll("input:checked")].map(
+            (input) => input.dataset.sourceId,
+          ),
+        );
+        return state.sources.filter((source) => checked.has(source.id));
+      }
+
+      function findSource(sourceId) {
+        return state.sources.find((source) => source.id === sourceId);
+      }
+
       function setupAutocomplete(inputId, suggestionsId, onPick) {
         const input = el(inputId);
         const box = el(suggestionsId);
-        let selectedIdx = null;
+        let selected = null; // { sourceId, stopIdx } | null
 
         function render(matches) {
           box.innerHTML = "";
-          for (const idx of matches) {
+          for (const { source, idx } of matches) {
             const button = document.createElement("button");
             button.type = "button";
-            const name = state.stops.name[idx] || state.stops.id[idx];
-            button.innerHTML = `${escapeHtml(name)} <span class="stop-id">${escapeHtml(state.stops.id[idx])}</span>`;
+            const name = source.stops.name[idx] || source.stops.id[idx];
+            const suffix =
+              activeSources().length > 1 ? ` · ${source.name}` : "";
+            button.innerHTML = `${escapeHtml(name)} <span class="stop-id">${escapeHtml(source.stops.id[idx])}${escapeHtml(suffix)}</span>`;
             button.addEventListener("click", () => {
               input.value = name;
-              selectedIdx = idx;
+              selected = { sourceId: source.id, stopIdx: idx };
               box.innerHTML = "";
-              onPick(idx);
+              onPick(selected);
             });
             box.appendChild(button);
           }
         }
 
         input.addEventListener("input", () => {
-          selectedIdx = null;
+          selected = null;
           onPick(null);
           const query = input.value.trim().toLowerCase();
           if (query.length < 1) {
@@ -483,11 +597,15 @@
             return;
           }
           const matches = [];
-          for (const i of state.stopFamily.searchable) {
-            if (matches.length >= 8) break;
-            const name = (state.stops.name[i] || "").toLowerCase();
-            const id = state.stops.id[i].toLowerCase();
-            if (name.includes(query) || id.includes(query)) matches.push(i);
+          outer: for (const source of activeSources()) {
+            for (const idx of source.stopFamily.searchable) {
+              if (matches.length >= 8) break outer;
+              const name = (source.stops.name[idx] || "").toLowerCase();
+              const id = source.stops.id[idx].toLowerCase();
+              if (name.includes(query) || id.includes(query)) {
+                matches.push({ source, idx });
+              }
+            }
           }
           render(matches);
         });
@@ -499,12 +617,19 @@
 
         return {
           get value() {
-            return selectedIdx;
+            return selected;
           },
-          setByIndex(idx) {
-            selectedIdx = idx;
-            input.value = state.stops.name[idx] || state.stops.id[idx];
+          setByValue(value) {
+            selected = value;
             box.innerHTML = "";
+            if (!value) {
+              input.value = "";
+              return;
+            }
+            const source = findSource(value.sourceId);
+            input.value =
+              source.stops.name[value.stopIdx] ||
+              source.stops.id[value.stopIdx];
           },
         };
       }
@@ -528,20 +653,123 @@
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
       }
 
-      async function openConnectionsReader(manifest) {
-        const url = manifest.files.connections;
-        const response = await fetchResponse(url);
-        if (manifest.compressed) {
-          const decompressed = response.body.pipeThrough(
-            new DecompressionStream("gzip"),
+      // Every "YYYY-MM" (UTC) month that overlaps [startSeconds, endSeconds].
+      function monthsInRange(startSeconds, endSeconds) {
+        const months = [];
+        let cursor = new Date(startSeconds * 1000);
+        cursor = new Date(
+          Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 1),
+        );
+        const endMonth = new Date(endSeconds * 1000);
+        while (cursor.getTime() <= endMonth.getTime()) {
+          months.push(cursor.toISOString().slice(0, 7));
+          cursor = new Date(
+            Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1),
           );
-          return RecordBatchReader.from(new Response(decompressed));
         }
-        return RecordBatchReader.from(response);
+        return months;
       }
 
-      const MAX_SCAN_HORIZON_SECONDS = 3 * 24 * 3600; // give up after 3 days of schedule
-      const MAX_DISPLAYED_OPTIONS = 6;
+      async function readConnectionsFile(url, compressed) {
+        const response = await fetchResponse(url);
+        const reader = compressed
+          ? await RecordBatchReader.from(
+              new Response(
+                response.body.pipeThrough(new DecompressionStream("gzip")),
+              ),
+            )
+          : await RecordBatchReader.from(response);
+
+        const rows = [];
+        for await (const batch of reader) {
+          const depStop = batch.getChild("departureStopIdx").toArray();
+          const arrStop = batch.getChild("arrivalStopIdx").toArray();
+          const depTime = batch.getChild("departureTime").toArray(); // BigInt64Array, seconds
+          const arrTime = batch.getChild("arrivalTime").toArray();
+          const trip = batch.getChild("tripIdx").toArray();
+          for (let i = 0; i < batch.numRows; i += 1) {
+            rows.push({
+              dS: depStop[i],
+              aS: arrStop[i],
+              depTime: Number(depTime[i]),
+              arrTime: Number(arrTime[i]),
+              trip: trip[i],
+            });
+          }
+        }
+        return rows;
+      }
+
+      /** Fetches one (region, month) partition, caching it on the source. */
+      async function fetchRegionMonth(source, region, month) {
+        const cacheKey = `${region}|${month}`;
+        if (source.connectionsCache.has(cacheKey)) {
+          return source.connectionsCache.get(cacheKey);
+        }
+        const relativePath =
+          source.manifest.connections?.files?.[region]?.[month];
+        const rows = relativePath
+          ? await readConnectionsFile(
+              source.baseUrl + relativePath,
+              source.manifest.compressed,
+            )
+          : [];
+        source.connectionsCache.set(cacheKey, rows);
+        return rows;
+      }
+
+      /**
+       * The geospatial+temporal pagination mechanism this format's
+       * partitioning enables (see arrowconnections.md): rather than fetch
+       * every region up front, start from just the origin's and
+       * destination's regions, then widen outward for a few rounds by
+       * checking which *other* regions the data already fetched actually
+       * points into (an arrival stop in a region not loaded yet), fetching
+       * those too — each round fetching every newly-needed (region, month)
+       * file concurrently rather than one at a time. This is a heuristic,
+       * not an exhaustive guarantee: a journey that needs to pass through a
+       * region touched by neither endpoint nor any region discovered within
+       * MAX_WIDENING_ROUNDS won't be found. Given a small number of regions
+       * (the common case) this converges immediately in practice.
+       */
+      async function buildConnectionsPool(
+        source,
+        originRegion,
+        destinationRegion,
+        months,
+      ) {
+        const loadedRegions = new Set();
+        const rows = [];
+        let toLoad = new Set([originRegion, destinationRegion]);
+
+        for (let round = 0; round < MAX_WIDENING_ROUNDS; round += 1) {
+          const regionsThisRound = [...toLoad].filter(
+            (region) => !loadedRegions.has(region),
+          );
+          if (regionsThisRound.length === 0) break;
+
+          const fetches = [];
+          for (const region of regionsThisRound) {
+            loadedRegions.add(region);
+            for (const month of months) {
+              fetches.push(fetchRegionMonth(source, region, month));
+            }
+          }
+          // Traverse every newly-needed (region, month) file in parallel.
+          const results = await Promise.all(fetches);
+          for (const regionRows of results) rows.push(...regionRows);
+
+          if (round === MAX_WIDENING_ROUNDS - 1) break;
+          toLoad = new Set();
+          for (const row of rows) {
+            const region = source.stops.regionIdx[row.aS];
+            if (!loadedRegions.has(region)) toLoad.add(region);
+          }
+        }
+
+        rows.sort((a, b) => a.depTime - b.depTime);
+        return { rows, regionsLoaded: loadedRegions.size };
+      }
 
       // Two profile entries/options are compared on (arrival, transfers)
       // alone: whichever criterion set is passed in, an entry only "wins"
@@ -573,48 +801,6 @@
       }
 
       /**
-       * Buffers every connection departing in [departureAfter, departureAfter
-       * + horizon] into memory, in the ascending departureTime order they're
-       * stored in. The multi-criteria profile scan below needs to process
-       * this window in *reverse* (latest departure first) — see
-       * computeJourneyProfile — which isn't possible while merely streaming
-       * forward through RecordBatch pages, so this window (a few hundred
-       * thousand connections at most for a multi-day horizon) is the part
-       * that's held in memory, not the whole file.
-       */
-      async function bufferConnectionsWindow({
-        manifest,
-        departureAfter,
-        scanLimit,
-        onProgress,
-      }) {
-        const reader = await openConnectionsReader(manifest);
-        const rows = [];
-        outer: for await (const batch of reader) {
-          const depStop = batch.getChild("departureStopIdx").toArray();
-          const arrStop = batch.getChild("arrivalStopIdx").toArray();
-          const depTime = batch.getChild("departureTime").toArray(); // BigInt64Array, seconds
-          const arrTime = batch.getChild("arrivalTime").toArray();
-          const trip = batch.getChild("tripIdx").toArray();
-
-          for (let i = 0; i < batch.numRows; i += 1) {
-            const t = Number(depTime[i]);
-            if (t < departureAfter) continue;
-            if (t > scanLimit) break outer;
-            rows.push({
-              dS: depStop[i],
-              aS: arrStop[i],
-              depTime: t,
-              arrTime: Number(arrTime[i]),
-              trip: trip[i],
-            });
-          }
-          onProgress?.(rows.length);
-        }
-        return rows;
-      }
-
-      /**
        * The multi-criteria Profile Connection Scan Algorithm (see the CSA
        * paper, https://arxiv.org/abs/1703.05997, and planner.js's
        * implementation of it): instead of tracking a single earliest
@@ -627,6 +813,9 @@
        * offers (one more transfer). The result at the origin is a genuine
        * Pareto front: several journeys, each better than every other on at
        * least one of (departs later, arrives sooner, fewer transfers).
+       *
+       * `rows` must already be sorted ascending by departureTime — the
+       * caller processes it in reverse.
        */
       function computeJourneyProfile(rows, destinationSet) {
         const profile = new Map(); // stopIdx -> Array<profile entry>
@@ -728,23 +917,17 @@
 
       /**
        * Plans up to MAX_DISPLAYED_OPTIONS journeys from originIdx to
-       * destinationIdx, Pareto-optimal over (arrival time, transfers), all
-       * departing at or after departureAfter.
+       * destinationIdx within a single source, Pareto-optimal over
+       * (arrival time, transfers), all departing at or after
+       * departureAfter.
        */
-      async function planJourneys({
+      async function planJourneysForSource({
+        source,
         originIdx,
         destinationIdx,
         departureAfter,
-        manifest,
         onProgress,
       }) {
-        // A selected origin/destination is usually a station: accept a
-        // departure or arrival at any of its child stops, not just the
-        // station row itself (see expandStopFamily / arrowconnections.md).
-        const originSet = expandStopFamily(originIdx);
-        const destinationSet = expandStopFamily(destinationIdx);
-        const scanLimit = departureAfter + MAX_SCAN_HORIZON_SECONDS;
-
         if (originIdx === destinationIdx) {
           return {
             found: true,
@@ -754,13 +937,25 @@
           };
         }
 
-        const rows = await bufferConnectionsWindow({
-          manifest,
-          departureAfter,
-          scanLimit,
-          onProgress,
-        });
-        const profile = computeJourneyProfile(rows, destinationSet);
+        const originSet = expandStopFamily(source, originIdx);
+        const destinationSet = expandStopFamily(source, destinationIdx);
+        const scanLimit = departureAfter + MAX_SCAN_HORIZON_SECONDS;
+        const months = monthsInRange(departureAfter, scanLimit);
+        const originRegion = source.stops.regionIdx[originIdx];
+        const destinationRegion = source.stops.regionIdx[destinationIdx];
+
+        const { rows, regionsLoaded } = await buildConnectionsPool(
+          source,
+          originRegion,
+          destinationRegion,
+          months,
+        );
+        onProgress?.(rows.length, regionsLoaded);
+
+        const windowed = rows.filter(
+          (row) => row.depTime >= departureAfter && row.depTime <= scanLimit,
+        );
+        const profile = computeJourneyProfile(windowed, destinationSet);
         const originOptions = collectOriginOptions(
           profile,
           originSet,
@@ -772,7 +967,7 @@
             found: false,
             options: [],
             totalOptions: 0,
-            scanned: rows.length,
+            scanned: windowed.length,
           };
         }
 
@@ -788,7 +983,7 @@
           found: true,
           options,
           totalOptions: originOptions.length,
-          scanned: rows.length,
+          scanned: windowed.length,
         };
       }
 
@@ -811,23 +1006,23 @@
           : `${remainder} min`;
       }
 
-      function renderLeg(leg) {
-        const routeIdx = state.trips.routeIdx[leg.trip];
+      function renderLeg(source, leg) {
+        const routeIdx = source.trips.routeIdx[leg.trip];
         const routeName =
-          state.routes.shortName[routeIdx] ||
-          state.routes.longName[routeIdx] ||
+          source.routes.shortName[routeIdx] ||
+          source.routes.longName[routeIdx] ||
           "";
-        const headsign = state.trips.headsign[leg.trip];
+        const headsign = source.trips.headsign[leg.trip];
 
         const div = document.createElement("div");
         div.className = "leg";
         div.innerHTML = `
       <div class="row">
-        <span class="stop">${escapeHtml(state.stops.name[leg.boardStop] || state.stops.id[leg.boardStop])}</span>
+        <span class="stop">${escapeHtml(source.stops.name[leg.boardStop] || source.stops.id[leg.boardStop])}</span>
         <span class="time">${formatTime(leg.boardTime)}</span>
       </div>
       <div class="row">
-        <span class="stop">${escapeHtml(state.stops.name[leg.alightStop] || state.stops.id[leg.alightStop])}</span>
+        <span class="stop">${escapeHtml(source.stops.name[leg.alightStop] || source.stops.id[leg.alightStop])}</span>
         <span class="time">${formatTime(leg.alightTime)}</span>
       </div>
       <div class="trip">${routeName ? escapeHtml(routeName) + " · " : ""}${escapeHtml(headsign || "")}</div>
@@ -835,7 +1030,7 @@
         return div;
       }
 
-      function renderOption(option, index) {
+      function renderOption(source, option, index) {
         const card = document.createElement("div");
         card.className = "option";
 
@@ -860,15 +1055,15 @@
             const wait = leg.boardTime - option.legs[legIndex - 1].alightTime;
             const div = document.createElement("div");
             div.className = "transfer";
-            div.textContent = `change at ${state.stops.name[leg.boardStop] || state.stops.id[leg.boardStop]} — ${formatDuration(wait)}`;
+            div.textContent = `change at ${source.stops.name[leg.boardStop] || source.stops.id[leg.boardStop]} — ${formatDuration(wait)}`;
             card.appendChild(div);
           }
-          card.appendChild(renderLeg(leg));
+          card.appendChild(renderLeg(source, leg));
         }
         return card;
       }
 
-      function renderResults(result) {
+      function renderResults(source, result) {
         const results = el("results");
         results.innerHTML = "";
 
@@ -878,62 +1073,91 @@
         }
 
         for (const [index, option] of result.options.entries()) {
-          results.appendChild(renderOption(option, index));
+          results.appendChild(renderOption(source, option, index));
         }
       }
 
       async function init() {
         try {
-          setStatus("Loading manifest…");
-          state.manifest = await (await fetchResponse("manifest.json")).json();
+          setStatus("Discovering sources…");
+          const descriptors = await discoverSources();
 
-          setStatus("Loading stop, route, and trip dictionaries…");
-          await loadDictionaries(state.manifest);
+          setStatus(`Loading ${descriptors.length} source(s)…`);
+          const results = await Promise.allSettled(descriptors.map(loadSource));
+          state.sources = results
+            .filter((r) => r.status === "fulfilled")
+            .map((r) => r.value);
+          for (const [index, r] of results.entries()) {
+            if (r.status === "rejected") {
+              console.error(
+                `Failed to load source ${descriptors[index].id}:`,
+                r.reason,
+              );
+            }
+          }
+          if (state.sources.length === 0) {
+            throw new Error("no source could be loaded");
+          }
 
-          el("footer").textContent =
-            `${state.manifest.counts.stops.toLocaleString()} stops · ` +
-            `${state.manifest.counts.routes.toLocaleString()} routes · ` +
-            `${state.manifest.counts.trips.toLocaleString()} trips · ` +
-            `generated ${new Date(state.manifest.generatedAt).toLocaleString()}`;
+          renderSourceCheckboxes();
 
           const origin = setupAutocomplete(
             "origin-input",
             "origin-suggestions",
-            (idx) => {
-              state.originIdx = idx;
+            (value) => {
+              state.origin = value;
             },
           );
           const destination = setupAutocomplete(
             "destination-input",
             "destination-suggestions",
-            (idx) => {
-              state.destinationIdx = idx;
+            (value) => {
+              state.destination = value;
             },
           );
 
+          // Selected stops belong to a specific source, so changing which
+          // sources are active can invalidate the current picks.
+          el("source-list")
+            .querySelectorAll("input")
+            .forEach((input) =>
+              input.addEventListener("change", () => {
+                origin.setByValue(null);
+                destination.setByValue(null);
+                state.origin = null;
+                state.destination = null;
+              }),
+            );
+
+          const totalStops = state.sources.reduce(
+            (sum, source) => sum + source.manifest.counts.stops,
+            0,
+          );
+          el("footer").textContent =
+            `${state.sources.length} source(s) · ${totalStops.toLocaleString()} stops total. ` +
+            `Journeys can only be planned within a single source — no cross-network transfers yet.`;
+
           el("swap-button").addEventListener("click", () => {
-            const originIdx = state.originIdx;
-            const destinationIdx = state.destinationIdx;
-            if (originIdx !== null) destination.setByIndex(originIdx);
-            else el("destination-input").value = "";
-            if (destinationIdx !== null) origin.setByIndex(destinationIdx);
-            else el("origin-input").value = "";
-            state.originIdx = destinationIdx;
-            state.destinationIdx = originIdx;
+            const originValue = state.origin;
+            const destinationValue = state.destination;
+            origin.setByValue(destinationValue ?? null);
+            destination.setByValue(originValue ?? null);
+            state.origin = destinationValue ?? null;
+            state.destination = originValue ?? null;
           });
 
           el("departure-input").value = toLocalDateTimeValue(new Date());
 
           setStatus(
-            `Ready — ${state.manifest.counts.stops.toLocaleString()} stops loaded.`,
+            `Ready — ${totalStops.toLocaleString()} stops loaded across ${state.sources.length} source(s).`,
           );
           planButton.disabled = false;
           planButton.textContent = "Plan journey";
         } catch (error) {
           console.error(error);
           setStatus(
-            `Could not load data: ${error.message}. Place manifest.json, stops.arrow, ` +
-              `routes.arrow, trips.arrow, and linkedConnections.arrow next to this page.`,
+            `Could not load data: ${error.message}. Place a sources.json (or a single ` +
+              `manifest.json/stops.arrow/routes.arrow/trips.arrow/connections partitions) next to this page.`,
             true,
           );
         }
@@ -941,9 +1165,16 @@
 
       el("journey-form").addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (state.originIdx === null || state.destinationIdx === null) {
+        if (!state.origin || !state.destination) {
           setStatus(
             "Pick both an origin and a destination from the suggestions.",
+            true,
+          );
+          return;
+        }
+        if (state.origin.sourceId !== state.destination.sourceId) {
+          setStatus(
+            "Origin and destination belong to different sources — cross-network transfers aren't supported yet. Pick a start and destination from the same system.",
             true,
           );
           return;
@@ -954,18 +1185,19 @@
           return;
         }
 
+        const source = findSource(state.origin.sourceId);
         planButton.disabled = true;
         const startedAt = performance.now();
         el("results").innerHTML = "";
         try {
-          const result = await planJourneys({
-            originIdx: state.originIdx,
-            destinationIdx: state.destinationIdx,
+          const result = await planJourneysForSource({
+            source,
+            originIdx: state.origin.stopIdx,
+            destinationIdx: state.destination.stopIdx,
             departureAfter: Math.floor(departureDate.getTime() / 1000),
-            manifest: state.manifest,
-            onProgress: (buffered) =>
+            onProgress: (buffered, regions) =>
               setStatus(
-                `Buffering the schedule… ${buffered.toLocaleString()} connections read so far.`,
+                `Fetched ${regions} region(s), ${buffered.toLocaleString()} connections buffered so far…`,
               ),
           });
           const elapsed = Math.round(performance.now() - startedAt);
@@ -976,11 +1208,11 @@
               : "";
           setStatus(
             result.found
-              ? `Found ${shown} journey option${shown === 1 ? "" : "s"}${hiddenNote} after scanning ${result.scanned.toLocaleString()} connections in ${elapsed} ms.`
-              : `No journey found after scanning ${result.scanned.toLocaleString()} connections in ${elapsed} ms.`,
+              ? `Found ${shown} journey option${shown === 1 ? "" : "s"}${hiddenNote} on ${source.name}, scanning ${result.scanned.toLocaleString()} connections in ${elapsed} ms.`
+              : `No journey found on ${source.name} after scanning ${result.scanned.toLocaleString()} connections in ${elapsed} ms.`,
             !result.found,
           );
-          renderResults(result);
+          renderResults(source, result);
         } catch (error) {
           console.error(error);
           setStatus(`Route planning failed: ${error.message}`, true);

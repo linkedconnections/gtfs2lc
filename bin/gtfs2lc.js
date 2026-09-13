@@ -38,6 +38,12 @@ program
     "number of conversion workers",
     parsePositiveInteger,
   )
+  .option(
+    "--regions <count>",
+    "arrow format only: geospatially partition connections into this many regions (see arrowconnections.md)",
+    parsePositiveInteger,
+    1,
+  )
   .showHelpAfterError()
   .action(run);
 
@@ -79,6 +85,12 @@ async function run(sourceArgument, options) {
     });
   }
 
+  if (options.stream && options.format === "arrow") {
+    throw new Error(
+      "--stream is not supported for the arrow format: it writes multiple partitioned files, not one stream. Use --output instead.",
+    );
+  }
+
   console.error("Converting GTFS to Linked Connections...");
   const mapper = new gtfs2lc.Connections({
     store: options.store,
@@ -87,6 +99,7 @@ async function run(sourceArgument, options) {
     fresh: options.fresh,
     baseUris,
     workers: options.workers,
+    regions: options.regions,
   });
   const connectionsFile = await mapper.convert(sourcePath, outputPath);
 

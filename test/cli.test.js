@@ -125,11 +125,13 @@ test.each([
   }
 });
 
-test("creates valid arrow output", async () => {
+test("creates valid partitioned arrow output", async () => {
   await execFileAsync(process.execPath, [
     cli,
     "--format",
     "arrow",
+    "--regions",
+    "2",
     "--fresh",
     "--workers",
     "2",
@@ -142,8 +144,11 @@ test("creates valid arrow output", async () => {
     await readFile(path.join(output, "manifest.json"), "utf8"),
   );
   expect(manifest.format).toBe("gtfs2lc-arrow-connections");
-  expect(manifest.files.connections).toBe("linkedConnections.arrow");
   expect(manifest.counts.stops).toBeGreaterThan(0);
+  expect(manifest.partitioning.method).toBe("hub");
+  expect(manifest.partitioning.regionCount).toBe(2);
+  expect(manifest.connections.months.length).toBeGreaterThan(0);
+  expect(Object.keys(manifest.connections.files).length).toBe(2);
 
   const { Table, RecordBatchStreamReader } = require("apache-arrow");
   const loadTable = async (name) =>
@@ -153,23 +158,31 @@ test("creates valid arrow output", async () => {
 
   const stops = await loadTable(manifest.files.stops);
   const trips = await loadTable(manifest.files.trips);
-  const connections = await loadTable(manifest.files.connections);
 
-  expect(connections.numRows).toBeGreaterThan(0);
+  let totalRows = 0;
+  for (const monthsForRegion of Object.values(manifest.connections.files)) {
+    for (const relativePath of Object.values(monthsForRegion)) {
+      const connections = await loadTable(relativePath);
+      totalRows += connections.numRows;
 
-  let sorted = true;
-  for (let row = 1; row < connections.numRows; row += 1) {
-    if (
-      connections.get(row).departureTime <
-      connections.get(row - 1).departureTime
-    ) {
-      sorted = false;
-      break;
+      let sorted = true;
+      for (let row = 1; row < connections.numRows; row += 1) {
+        if (
+          connections.get(row).departureTime <
+          connections.get(row - 1).departureTime
+        ) {
+          sorted = false;
+          break;
+        }
+      }
+      expect(sorted).toBe(true);
+
+      if (connections.numRows > 0) {
+        const first = connections.get(0);
+        expect(stops.get(first.departureStopIdx).stopId).toBeTruthy();
+        expect(trips.get(first.tripIdx).tripId).toBeTruthy();
+      }
     }
   }
-  expect(sorted).toBe(true);
-
-  const first = connections.get(0);
-  expect(stops.get(first.departureStopIdx).stopId).toBeTruthy();
-  expect(trips.get(first.tripIdx).tripId).toBeTruthy();
+  expect(totalRows).toBeGreaterThan(0);
 });
