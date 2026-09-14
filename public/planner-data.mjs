@@ -68,6 +68,75 @@ export function buffersOf(batches) {
   return [...buffers];
 }
 
+// Forward counterpart of scanBackward: connections in non-decreasing
+// departure order, for a one-to-many earliest-arrival scan (isochrones)
+// rather than a one-to-one backward profile. Same equal-departure fixpoint
+// discipline, since a zero-duration connection can enable another
+// connection departing at that same instant.
+export function scanForward(batches, from, to, visit) {
+  const heap = [];
+  const less = (a, b) =>
+    a.time < b.time || (a.time === b.time && a.ordinal < b.ordinal);
+  const push = (cursor) => {
+    let i = heap.length;
+    heap.push(cursor);
+    while (i > 0) {
+      const parent = (i - 1) >>> 1;
+      if (!less(cursor, heap[parent])) break;
+      heap[i] = heap[parent];
+      i = parent;
+    }
+    heap[i] = cursor;
+  };
+  const pop = () => {
+    const first = heap[0];
+    const last = heap.pop();
+    if (heap.length) {
+      let i = 0;
+      while (i * 2 + 1 < heap.length) {
+        let child = i * 2 + 1;
+        if (child + 1 < heap.length && less(heap[child + 1], heap[child]))
+          child += 1;
+        if (!less(heap[child], last)) break;
+        heap[i] = heap[child];
+        i = child;
+      }
+      heap[i] = last;
+    }
+    return first;
+  };
+  for (let ordinal = 0; ordinal < batches.length; ordinal += 1) {
+    const batch = batches[ordinal];
+    const lo = lowerBound(batch, from);
+    const hi = lowerBound(batch, to);
+    if (lo < hi)
+      push({ batch, row: lo, hi, ordinal, time: timeAt(batch, "dep", lo) });
+  }
+  let scanned = 0;
+  while (heap.length) {
+    const time = heap[0].time;
+    const group = [];
+    while (heap.length && heap[0].time === time) {
+      const cursor = pop();
+      scanned += 1;
+      group.push(cursor.ordinal, cursor.row);
+      cursor.row += 1;
+      if (cursor.row < cursor.hi) {
+        cursor.time = timeAt(cursor.batch, "dep", cursor.row);
+        push(cursor);
+      }
+    }
+    let changed;
+    do {
+      changed = false;
+      for (let i = 0; i < group.length; i += 2) {
+        changed = visit(batches[group[i]], group[i + 1], time) || changed;
+      }
+    } while (changed);
+  }
+  return scanned;
+}
+
 export class PageCache {
   constructor(budget = 64 * 1024 * 1024) {
     this.budget = budget;

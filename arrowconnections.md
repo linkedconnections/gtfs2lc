@@ -249,5 +249,10 @@ The browser returns up to six alternatives over later departure, earlier
 arrival and fewer vehicle changes, within 24 elapsed hours. Walking uses
 straight-line distances and a 5 km/h assumption; station-family transfer
 time is zero. These assumptions are separate from the Arrow storage schema.
-See [`public/README.md`](public/README.md) for controls, modules, tests and
-remaining routing limitations.
+
+The same pages also support a one-to-many earliest-arrival scan, used by
+the browser's Isochrones tab: a single forward Connection Scan from a
+clicked point across every selected source, rather than the two-sided
+profile scan above, since there is no destination to trade transfers
+against. See [`public/README.md`](public/README.md) for controls, modules,
+tests and remaining routing limitations.

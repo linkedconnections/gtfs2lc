@@ -1,6 +1,7 @@
 import { readConnectionBatches, PageCache } from "./planner-data.mjs";
 import { buildNetwork } from "./planner-network.mjs";
 import { computeProfile } from "./planner-profile.mjs";
+import { computeIsochrone } from "./planner-isochrone.mjs";
 
 export function createPlanner(
   { tableFromIPC, RecordBatchReader },
@@ -160,22 +161,7 @@ export function createPlanner(
     return keys;
   }
 
-  async function planJourneys({
-    sources,
-    origin,
-    destination,
-    departureAfter,
-    maxWalkMeters,
-    onProgress,
-  }) {
-    if (
-      !Number.isFinite(departureAfter) ||
-      !Number.isFinite(maxWalkMeters) ||
-      maxWalkMeters < 0 ||
-      maxWalkMeters > 5000
-    )
-      throw new Error("Invalid departure time or walking limit (0–5000 m)");
-    const to = departureAfter + 86400;
+  function ensureNetwork(sources, maxWalkMeters) {
     if (
       !previousNetwork ||
       previousWalk !== maxWalkMeters ||
@@ -186,23 +172,15 @@ export function createPlanner(
       previousSources = sources.slice();
       previousWalk = maxWalkMeters;
     }
-    const network = previousNetwork;
-    const fromStop = network.globalStop(origin);
-    const toStop = network.globalStop(destination);
-    if (fromStop === toStop)
-      return {
-        found: true,
-        options: [
-          {
-            departure: departureAfter,
-            arrival: departureAfter,
-            transfers: 0,
-            legs: [],
-          },
-        ],
-        totalOptions: 1,
-        scanned: 0,
-      };
+    return previousNetwork;
+  }
+
+  // Schedules and loads every page whose departure bounds can overlap
+  // [departureAfter, to) across a network's sources, with bounded
+  // concurrency and the shared page cache. Shared by journey planning
+  // (one OD pair, 24h window) and isochrones (one origin, all destinations,
+  // a shorter window).
+  async function loadBatches(network, departureAfter, to, onProgress) {
     const jobs = [];
     for (const source of network.sources) {
       const periods = partitionsInRange(source.manifest, departureAfter, to);
@@ -291,9 +269,51 @@ export function createPlanner(
     );
     const failed = loads.find((result) => result.status === "rejected");
     if (failed) throw failed.reason;
+    return { batches: results.flat(), pages: jobs.length };
+  }
+
+  async function planJourneys({
+    sources,
+    origin,
+    destination,
+    departureAfter,
+    maxWalkMeters,
+    onProgress,
+  }) {
+    if (
+      !Number.isFinite(departureAfter) ||
+      !Number.isFinite(maxWalkMeters) ||
+      maxWalkMeters < 0 ||
+      maxWalkMeters > 5000
+    )
+      throw new Error("Invalid departure time or walking limit (0–5000 m)");
+    const to = departureAfter + 86400;
+    const network = ensureNetwork(sources, maxWalkMeters);
+    const fromStop = network.globalStop(origin);
+    const toStop = network.globalStop(destination);
+    if (fromStop === toStop)
+      return {
+        found: true,
+        options: [
+          {
+            departure: departureAfter,
+            arrival: departureAfter,
+            transfers: 0,
+            legs: [],
+          },
+        ],
+        totalOptions: 1,
+        scanned: 0,
+      };
+    const { batches, pages } = await loadBatches(
+      network,
+      departureAfter,
+      to,
+      onProgress,
+    );
     onProgress?.({ phase: "scanning" });
     const result = computeProfile(
-      results.flat(),
+      batches,
       network,
       fromStop,
       toStop,
@@ -301,7 +321,55 @@ export function createPlanner(
       to,
     );
     result.diagnostics.cacheBytes = cache.bytes;
-    result.diagnostics.pages = jobs.length;
+    result.diagnostics.pages = pages;
+    return result;
+  }
+
+  /**
+   * One-to-many earliest arrival from an arbitrary clicked point, not a
+   * stop: how much of the selected networks is reachable within
+   * `maxDurationSeconds`, for isochrone rendering. Walking access to the
+   * origin uses the same `maxWalkMeters` setting as journey planning.
+   */
+  async function planIsochrone({
+    sources,
+    origin,
+    departureAfter,
+    maxWalkMeters,
+    maxDurationSeconds,
+    onProgress,
+  }) {
+    if (
+      !Number.isFinite(departureAfter) ||
+      !Number.isFinite(maxWalkMeters) ||
+      maxWalkMeters < 0 ||
+      maxWalkMeters > 5000
+    )
+      throw new Error("Invalid departure time or walking limit (0–5000 m)");
+    if (
+      !Number.isFinite(maxDurationSeconds) ||
+      maxDurationSeconds < 60 ||
+      maxDurationSeconds > 3 * 3600
+    )
+      throw new Error("Invalid isochrone duration (1–180 minutes)");
+    const to = departureAfter + maxDurationSeconds;
+    const network = ensureNetwork(sources, maxWalkMeters);
+    const { batches, pages } = await loadBatches(
+      network,
+      departureAfter,
+      to,
+      onProgress,
+    );
+    onProgress?.({ phase: "scanning" });
+    const result = computeIsochrone(
+      batches,
+      network,
+      origin,
+      departureAfter,
+      to,
+      maxWalkMeters,
+    );
+    result.pages = pages;
     return result;
   }
 
@@ -311,5 +379,6 @@ export function createPlanner(
     loadSmallTable,
     partitionsInRange,
     planJourneys,
+    planIsochrone,
   };
 }

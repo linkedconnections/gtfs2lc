@@ -39,9 +39,37 @@ export function createPlannerService(planner) {
         stopFamily: { searchable: source.stopFamily.searchable },
       }));
     }
-    if (type !== "plan") throw new Error(`Unknown planner request: ${type}`);
+    if (type !== "plan" && type !== "isochrone")
+      throw new Error(`Unknown planner request: ${type}`);
     const active = new Set(payload.sourceIds || sources.map((s) => s.id));
     const selected = sources.filter((s) => active.has(s.id));
+    if (type === "isochrone") {
+      const result = await planner.planIsochrone({
+        ...payload,
+        sources: selected,
+        onProgress,
+      });
+      const bySource = new Map(selected.map((s) => [s.id, s]));
+      const points = result.reachable
+        .map((r) => {
+          const source = bySource.get(r.sourceId);
+          return {
+            sourceId: r.sourceId,
+            name: source.stops.name[r.stopIdx] || source.stops.id[r.stopIdx],
+            lat: source.stops.lat[r.stopIdx],
+            lon: source.stops.lon[r.stopIdx],
+            durationSeconds: r.durationSeconds,
+          };
+        })
+        .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+      return {
+        found: result.found,
+        noAccess: result.noAccess,
+        origin: result.origin,
+        points,
+        scanned: result.scanned,
+      };
+    }
     const result = await planner.planJourneys({
       ...payload,
       sources: selected,

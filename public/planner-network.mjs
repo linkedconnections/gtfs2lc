@@ -70,50 +70,74 @@ export function buildNetwork(sources, maxWalkMeters) {
       if (!grid.has(k)) grid.set(k, []);
       grid.get(k).push(i);
     }
+  // Shared grid lookup: every root stop (or arbitrary point) within
+  // maxMeters of (px, py, pz), excluding `self` (a root stop id, or -1
+  // for an arbitrary point that is not itself a stop).
+  function search(px, py, pz, maxMeters, self) {
+    const stops = [];
+    const distances = [];
+    if (!Number.isFinite(px)) return { stops, distances };
+    const radius = Math.ceil(maxMeters / CELL);
+    const candidates = [];
+    if ((2 * radius + 1) ** 3 > roots.length) candidates.push(roots);
+    else {
+      const a = Math.floor(px / CELL);
+      const b = Math.floor(py / CELL);
+      const c = Math.floor(pz / CELL);
+      for (let dx = -radius; dx <= radius; dx += 1)
+        for (let dy = -radius; dy <= radius; dy += 1)
+          for (let dz = -radius; dz <= radius; dz += 1) {
+            const cell = grid.get(key(a + dx, b + dy, c + dz));
+            if (cell) candidates.push(cell);
+          }
+    }
+    for (const cell of candidates)
+      for (const other of cell) {
+        if (other === self) continue;
+        const chord = Math.hypot(x[other] - px, y[other] - py, z[other] - pz);
+        if (chord > maxMeters) continue;
+        const meters = 2 * EARTH * Math.asin(Math.min(1, chord / (2 * EARTH)));
+        if (meters <= maxMeters) {
+          stops.push(other);
+          distances.push(meters);
+        }
+      }
+    return { stops, distances };
+  }
+
   const cachedNeighbors = new Map();
   function neighbors(stop) {
     stop = root[stop];
     if (cachedNeighbors.has(stop)) return cachedNeighbors.get(stop);
-    const stops = [stop];
-    const distances = [0];
-    const radius = Math.ceil(maxWalkMeters / CELL);
-    const candidates = [];
-    if (Number.isFinite(x[stop])) {
-      if ((2 * radius + 1) ** 3 > roots.length) candidates.push(roots);
-      else {
-        const a = Math.floor(x[stop] / CELL);
-        const b = Math.floor(y[stop] / CELL);
-        const c = Math.floor(z[stop] / CELL);
-        for (let dx = -radius; dx <= radius; dx += 1)
-          for (let dy = -radius; dy <= radius; dy += 1)
-            for (let dz = -radius; dz <= radius; dz += 1) {
-              const cell = grid.get(key(a + dx, b + dy, c + dz));
-              if (cell) candidates.push(cell);
-            }
-      }
-      for (const cell of candidates)
-        for (const other of cell) {
-          if (other === stop) continue;
-          const chord = Math.hypot(
-            x[other] - x[stop],
-            y[other] - y[stop],
-            z[other] - z[stop],
-          );
-          if (chord > maxWalkMeters) continue;
-          const meters =
-            2 * EARTH * Math.asin(Math.min(1, chord / (2 * EARTH)));
-          if (meters <= maxWalkMeters) {
-            stops.push(other);
-            distances.push(meters);
-          }
-        }
-    }
+    const found = search(x[stop], y[stop], z[stop], maxWalkMeters, stop);
     const result = {
-      stops: Int32Array.from(stops),
-      meters: Float64Array.from(distances),
+      stops: Int32Array.from([stop, ...found.stops]),
+      meters: Float64Array.from([0, ...found.distances]),
     };
     cachedNeighbors.set(stop, result);
     return result;
+  }
+
+  // Arbitrary map click, not necessarily a stop: every root stop within
+  // maxMeters of (lat, lon), used to seed an isochrone from a clicked point.
+  function pointNeighbors(lat, lon, maxMeters) {
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lon) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lon) > 180
+    )
+      return { stops: new Int32Array(0), meters: new Float64Array(0) };
+    const phi = (lat * Math.PI) / 180;
+    const lambda = (lon * Math.PI) / 180;
+    const px = EARTH * Math.cos(phi) * Math.cos(lambda);
+    const py = EARTH * Math.cos(phi) * Math.sin(lambda);
+    const pz = EARTH * Math.sin(phi);
+    const found = search(px, py, pz, maxMeters, -1);
+    return {
+      stops: Int32Array.from(found.stops),
+      meters: Float64Array.from(found.distances),
+    };
   }
   const globalStop = ({ sourceId, stopIdx }) => {
     const source = selected.find((s) => s.id === sourceId);
@@ -136,6 +160,7 @@ export function buildNetwork(sources, maxWalkMeters) {
     owner,
     stopCount,
     neighbors,
+    pointNeighbors,
     globalStop,
     localStop,
   };

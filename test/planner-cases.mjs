@@ -10,6 +10,7 @@ import { gzipSync } from "node:zlib";
 import { createPlanner } from "../public/planner-core.mjs";
 import { buildNetwork, WALK_SPEED } from "../public/planner-network.mjs";
 import { computeProfile } from "../public/planner-profile.mjs";
+import { computeIsochrone } from "../public/planner-isochrone.mjs";
 import {
   PageCache,
   readConnectionBatches,
@@ -594,6 +595,45 @@ test("a cross-operator journey can start on foot, and same-operator endpoints ca
   }
 });
 
+test("worker computes an isochrone from a clicked point, walking to stops and riding beyond walking range", async () => {
+  const { directory } = await fixture();
+  let worker;
+  try {
+    const running = await startWorker(directory);
+    worker = running.worker;
+    const { client } = running;
+    await client.request("init");
+    const result = await client.request("isochrone", {
+      origin: { lat: 51, lon: 4 },
+      departureAfter: start,
+      maxWalkMeters: 2000,
+      maxDurationSeconds: 1800,
+    });
+    assert.equal(result.found, true);
+    assert.equal(result.noAccess, false);
+    const origin = result.points.find((p) => p.name === "Origin");
+    assert.ok(origin);
+    assert.equal(origin.durationSeconds, 0);
+    // Too far to walk (~2.6 km); only reachable via the direct ride.
+    const destination = result.points.find((p) => p.name === "Destination");
+    assert.ok(destination);
+    assert.equal(destination.durationSeconds, 100);
+
+    const wayOff = await client.request("isochrone", {
+      origin: { lat: 0, lon: 0 },
+      departureAfter: start,
+      maxWalkMeters: 1000,
+      maxDurationSeconds: 1800,
+    });
+    assert.equal(wayOff.found, false);
+    assert.equal(wayOff.noAccess, true);
+    assert.deepEqual(wayOff.points, []);
+  } finally {
+    if (worker) await worker.terminate();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 function inMemoryNetwork(rows, count = 4, spacing = 1, maxWalkMeters = 0) {
   const source = {
     id: "s",
@@ -986,4 +1026,70 @@ test("station families share profiles while returned ride legs retain platform i
   assert.equal(result.found, true);
   assert.equal(result.options[0].legs[0].boardStop, 2);
   assert.equal(result.options[0].legs[0].alightStop, 4);
+});
+
+test("isochrone reaches a clicked point's walking neighbors, then rides beyond walking range", () => {
+  // Three stops roughly 222 m apart along a meridian; stop 2 is out of a
+  // 300 m walking radius from stop 0, so it can only be reached by riding.
+  const { network, batch } = inMemoryNetwork(
+    [{ dep: 200, arr: 300, dS: 1, aS: 2, trip: 0 }],
+    3,
+    0.002,
+    300,
+  );
+  const clickNearStop0 = { lat: 40, lon: 0 };
+  const result = computeIsochrone(
+    [batch],
+    network,
+    clickNearStop0,
+    0,
+    1000,
+    300,
+  );
+  assert.equal(result.found, true);
+  assert.equal(result.noAccess, false);
+  const byStop = new Map(result.reachable.map((r) => [r.stopIdx, r]));
+  assert.equal(byStop.get(0).durationSeconds, 0);
+  assert.ok(byStop.get(1).durationSeconds > 0);
+  assert.ok(byStop.get(1).durationSeconds < 300);
+  // Only reachable by riding from stop 1, arriving at the connection's
+  // scheduled time — not by a direct walk, which would exceed 300 m.
+  assert.equal(byStop.get(2).arrival, 300);
+
+  const tooFarToWalkAtAll = computeIsochrone(
+    [batch],
+    network,
+    { lat: 0, lon: 0 },
+    0,
+    1000,
+    300,
+  );
+  assert.equal(tooFarToWalkAtAll.found, false);
+  assert.equal(tooFarToWalkAtAll.noAccess, true);
+  assert.deepEqual(tooFarToWalkAtAll.reachable, []);
+});
+
+test("planIsochrone rejects an out-of-range duration or walking limit before loading any data", async () => {
+  const empty = createPlanner(arrow);
+  const base = {
+    sources: [],
+    origin: { lat: 51, lon: 4 },
+    departureAfter: start,
+    maxWalkMeters: 1000,
+    maxDurationSeconds: 1800,
+  };
+  await assert.rejects(
+    empty.planIsochrone({ ...base, maxDurationSeconds: 30 }),
+    /duration/,
+  );
+  await assert.rejects(
+    empty.planIsochrone({ ...base, maxDurationSeconds: 4 * 3600 }),
+    /duration/,
+  );
+  await assert.rejects(
+    empty.planIsochrone({ ...base, maxWalkMeters: -1 }),
+    /walking limit/,
+  );
+  const result = await empty.planIsochrone(base);
+  assert.equal(result.found, false);
 });

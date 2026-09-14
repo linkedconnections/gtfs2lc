@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Arrow Connections route planner</title>
+    <title>Arrow Connections journey planner</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -288,11 +288,77 @@
         padding: 1px 5px;
         border-radius: 4px;
       }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+      }
+      .tab-button {
+        border: none;
+        background: none;
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding: 10px 4px;
+        margin-right: 16px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+      }
+      .tab-button[aria-selected="true"] {
+        color: var(--text);
+        border-bottom-color: var(--accent);
+      }
+      .tab-panel[hidden] {
+        display: none;
+      }
+      #iso-map {
+        height: 440px;
+        width: 100%;
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--leg-bg);
+      }
+      #iso-status {
+        font-size: 0.82rem;
+        color: var(--muted);
+        min-height: 1.2em;
+        margin-bottom: 8px;
+      }
+      #iso-status.error {
+        color: var(--danger);
+      }
+      .legend {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 12px 0 4px;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .legend-gradient {
+        flex: 1;
+        height: 10px;
+        border-radius: 5px;
+        border: 1px solid var(--border);
+        background: linear-gradient(
+          to right,
+          #08306b,
+          #2171b5,
+          #6baed6,
+          #c6dbef,
+          #f7fbff
+        );
+      }
+      .maplibregl-popup-content {
+        color: #1a1a1a;
+        font-size: 0.85rem;
+      }
     </style>
   </head>
   <body>
     <main>
-      <h1>Arrow Connections route planner</h1>
+      <h1>Arrow Connections journey planner</h1>
       <p class="subtitle">
         Runs a multi-criteria Profile Connection Scan Algorithm — Pareto-optimal
         over arrival time and transfers, like
@@ -310,71 +376,149 @@
         format this reads.
       </p>
 
-      <form class="panel" id="journey-form">
-        <div class="sources" id="source-list"></div>
-
-        <div class="field">
-          <label for="origin-input">From</label>
-          <input
-            type="text"
-            id="origin-input"
-            autocomplete="off"
-            placeholder="Search a stop…"
-          />
-          <div class="suggestions" id="origin-suggestions"></div>
-        </div>
-
+      <div class="tabs" role="tablist">
         <button
           type="button"
-          class="swap"
-          id="swap-button"
-          title="Swap origin and destination"
+          class="tab-button"
+          id="tab-planner"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panel-planner"
         >
-          ⇅ swap
+          Route Planner
         </button>
+        <button
+          type="button"
+          class="tab-button"
+          id="tab-isochrones"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-isochrones"
+        >
+          Isochrones
+        </button>
+      </div>
 
-        <div class="field">
-          <label for="destination-input">To</label>
-          <input
-            type="text"
-            id="destination-input"
-            autocomplete="off"
-            placeholder="Search a stop…"
-          />
-          <div class="suggestions" id="destination-suggestions"></div>
-        </div>
+      <section class="tab-panel" id="panel-planner" role="tabpanel">
+        <form class="panel" id="journey-form">
+          <div class="sources" id="source-list"></div>
 
-        <div class="field">
-          <label for="departure-input">Depart after</label>
-          <input type="datetime-local" id="departure-input" />
-        </div>
-
-        <details class="advanced">
-          <summary>Advanced</summary>
           <div class="field">
-            <label for="max-walk-input"
-              >Maximum walking distance per leg (meters)</label
-            >
+            <label for="origin-input">From</label>
             <input
-              type="number"
-              id="max-walk-input"
-              min="0"
-              max="5000"
-              step="50"
-              value="1000"
+              type="text"
+              id="origin-input"
+              autocomplete="off"
+              placeholder="Search a stop…"
             />
+            <div class="suggestions" id="origin-suggestions"></div>
           </div>
-        </details>
 
-        <button type="submit" class="primary" id="plan-button" disabled>
-          Loading data…
-        </button>
-      </form>
+          <button
+            type="button"
+            class="swap"
+            id="swap-button"
+            title="Swap origin and destination"
+          >
+            ⇅ swap
+          </button>
 
-      <div id="status"></div>
-      <div id="results"></div>
+          <div class="field">
+            <label for="destination-input">To</label>
+            <input
+              type="text"
+              id="destination-input"
+              autocomplete="off"
+              placeholder="Search a stop…"
+            />
+            <div class="suggestions" id="destination-suggestions"></div>
+          </div>
 
-      <footer id="footer"></footer>
+          <div class="field">
+            <label for="departure-input">Depart after</label>
+            <input type="datetime-local" id="departure-input" />
+          </div>
+
+          <details class="advanced">
+            <summary>Advanced</summary>
+            <div class="field">
+              <label for="max-walk-input"
+                >Maximum walking distance per leg (meters)</label
+              >
+              <input
+                type="number"
+                id="max-walk-input"
+                min="0"
+                max="5000"
+                step="50"
+                value="1000"
+              />
+            </div>
+          </details>
+
+          <button type="submit" class="primary" id="plan-button" disabled>
+            Loading data…
+          </button>
+        </form>
+
+        <div id="status"></div>
+        <div id="results"></div>
+
+        <footer id="footer"></footer>
+      </section>
+
+      <section class="tab-panel" id="panel-isochrones" role="tabpanel" hidden>
+        <p class="subtitle">
+          Click the map to scan every selected network for how far it can be
+          reached from that point within a chosen travel time — the same
+          connection scan as the planner above, run one-to-many from a clicked
+          stop-access point instead of one-to-one between two stops.
+        </p>
+
+        <div class="panel" id="iso-controls">
+          <div class="sources" id="iso-source-list"></div>
+
+          <div class="field">
+            <label for="iso-departure-input">Depart after</label>
+            <input type="datetime-local" id="iso-departure-input" />
+          </div>
+
+          <div class="field">
+            <label for="iso-duration-input">Max travel time</label>
+            <select id="iso-duration-input">
+              <option value="900">15 min</option>
+              <option value="1800" selected>30 min</option>
+              <option value="2700">45 min</option>
+              <option value="3600">60 min</option>
+              <option value="5400">90 min</option>
+              <option value="7200">120 min</option>
+            </select>
+          </div>
+
+          <details class="advanced">
+            <summary>Advanced</summary>
+            <div class="field">
+              <label for="iso-max-walk-input"
+                >Maximum walking distance to/between stops (meters)</label
+              >
+              <input
+                type="number"
+                id="iso-max-walk-input"
+                min="0"
+                max="5000"
+                step="50"
+                value="1000"
+              />
+            </div>
+          </details>
+        </div>
+
+        <div id="iso-status">Loading data…</div>
+        <div id="iso-map"></div>
+        <div class="legend" id="iso-legend"></div>
+
+        <footer id="iso-footer"></footer>
+      </section>
     </main>
 
     <script type="module">
@@ -397,8 +541,8 @@
         statusEl.classList.toggle("error", isError);
       }
 
-      function renderSourceCheckboxes() {
-        const container = el("source-list");
+      function renderSourceCheckboxes(containerId = "source-list") {
+        const container = el(containerId);
         container.innerHTML = "";
         for (const source of state.sources) {
           const label = document.createElement("label");
@@ -419,9 +563,9 @@
         }
       }
 
-      function activeSources() {
+      function activeSources(containerId = "source-list") {
         const checked = new Set(
-          [...el("source-list").querySelectorAll("input:checked")].map(
+          [...el(containerId).querySelectorAll("input:checked")].map(
             (input) => input.dataset.sourceId,
           ),
         );
@@ -622,6 +766,463 @@
           results.appendChild(renderOption(option, index));
       }
 
+      function setIsoStatus(message, isError = false) {
+        const element = el("iso-status");
+        element.textContent = message;
+        element.classList.toggle("error", isError);
+      }
+
+      // Sequential single-hue scale (ColorBrewer Blues, reversed): dark and
+      // saturated for a short travel time, fading to pale as it grows.
+      const ISO_COLOR_STOPS = [
+        "#08306b",
+        "#2171b5",
+        "#6baed6",
+        "#c6dbef",
+        "#f7fbff",
+      ];
+
+      function renderIsoLegend(maxDurationSeconds) {
+        const legend = el("iso-legend");
+        legend.innerHTML = "";
+        const min = document.createElement("span");
+        min.textContent = "0 min (dark = closer)";
+        const bar = document.createElement("span");
+        bar.className = "legend-gradient";
+        const max = document.createElement("span");
+        max.textContent = `${Math.round(maxDurationSeconds / 60)} min`;
+        legend.append(min, bar, max);
+      }
+
+      // Loaded on first use of the Isochrones tab only, so a Route-Planner-only
+      // visit never fetches the map library or its tiles.
+      let maplibreLoading;
+      function loadMaplibre() {
+        if (window.maplibregl) return Promise.resolve(window.maplibregl);
+        if (!maplibreLoading)
+          maplibreLoading = (async () => {
+            if (!document.getElementById("maplibre-css")) {
+              const link = document.createElement("link");
+              link.id = "maplibre-css";
+              link.rel = "stylesheet";
+              link.href =
+                "https://cdn.jsdelivr.net/npm/maplibre-gl@6.9.0/dist/maplibre-gl.css";
+              document.head.appendChild(link);
+            }
+            const lib =
+              await import("https://cdn.jsdelivr.net/npm/maplibre-gl@6.9.0/dist/maplibre-gl.mjs");
+            window.maplibregl = lib;
+            return lib;
+          })();
+        return maplibreLoading;
+      }
+
+      // Loaded on first use of the Isochrones tab only, alongside MapLibre.
+      let contourLibLoading;
+      function loadContourLib() {
+        if (!contourLibLoading)
+          contourLibLoading =
+            import("https://cdn.jsdelivr.net/npm/d3-contour@4/+esm");
+        return contourLibLoading;
+      }
+
+      function hexToRgb(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+      }
+      function rgbToHex([r, g, b]) {
+        return (
+          "#" +
+          [r, g, b]
+            .map((v) =>
+              Math.max(0, Math.min(255, Math.round(v)))
+                .toString(16)
+                .padStart(2, "0"),
+            )
+            .join("")
+        );
+      }
+      // Same dark(close)-to-light(far) scale as the point layer and legend,
+      // sampled at an arbitrary fraction of the max travel time.
+      function isoColorAt(fraction) {
+        fraction = Math.min(1, Math.max(0, fraction));
+        const scaled = fraction * (ISO_COLOR_STOPS.length - 1);
+        const i = Math.min(ISO_COLOR_STOPS.length - 2, Math.floor(scaled));
+        const t = scaled - i;
+        const a = hexToRgb(ISO_COLOR_STOPS[i]);
+        const b = hexToRgb(ISO_COLOR_STOPS[i + 1]);
+        return rgbToHex(a.map((v, idx) => v + (b[idx] - v) * t));
+      }
+
+      const ISO_SURFACE_BANDS = 7;
+      const ISO_SURFACE_MAX_SAMPLES = 500;
+
+      /**
+       * Builds a filled, contoured isochrone surface — like a classic
+       * travel-time map — by interpolating travel time over a regular grid
+       * (inverse-distance weighting from the reachable stops) and slicing it
+       * into nested filled bands with marching squares (d3-contour). This is
+       * an interpolated surface between sampled stops, not a measured
+       * walkshed: it fills the gaps a raw point layer leaves, the same way
+       * the reference map interpolates between railway stations.
+       */
+      async function buildIsoSurface(points, origin, maxDurationSeconds) {
+        const d3 = await loadContourLib();
+        const samples = points.map((p) => ({
+          lat: p.lat,
+          lon: p.lon,
+          duration: p.durationSeconds,
+        }));
+        samples.push({ lat: origin.lat, lon: origin.lon, duration: 0 });
+        const thinned =
+          samples.length > ISO_SURFACE_MAX_SAMPLES
+            ? samples.filter(
+                (_, i) =>
+                  i % Math.ceil(samples.length / ISO_SURFACE_MAX_SAMPLES) === 0,
+              )
+            : samples;
+
+        let latMin = Infinity,
+          latMax = -Infinity,
+          lonMin = Infinity,
+          lonMax = -Infinity;
+        for (const s of thinned) {
+          latMin = Math.min(latMin, s.lat);
+          latMax = Math.max(latMax, s.lat);
+          lonMin = Math.min(lonMin, s.lon);
+          lonMax = Math.max(lonMax, s.lon);
+        }
+        // Pad so the surface doesn't end abruptly right at the outermost stop.
+        const latPad = Math.max((latMax - latMin) * 0.15, 0.02);
+        const lonPad = Math.max((lonMax - lonMin) * 0.15, 0.03);
+        latMin -= latPad;
+        latMax += latPad;
+        lonMin -= lonPad;
+        lonMax += lonPad;
+
+        const cols = 90;
+        const midLat = (latMin + latMax) / 2;
+        const metersPerDegLat = 111320;
+        const metersPerDegLon = 111320 * Math.cos((midLat * Math.PI) / 180);
+        const aspect =
+          ((latMax - latMin) * metersPerDegLat) /
+          Math.max(1, (lonMax - lonMin) * Math.abs(metersPerDegLon));
+        const rows = Math.max(20, Math.min(160, Math.round(cols * aspect)));
+
+        // How far apart stops typically are, so the surface can stop short of
+        // cells nowhere near any sample instead of extrapolating a flat plateau
+        // across empty space. Scales with the network's own density.
+        function averageNearestNeighborMeters(list) {
+          if (list.length < 2) return null;
+          let total = 0;
+          for (const a of list) {
+            let nearest = Infinity;
+            for (const b of list) {
+              if (a === b) continue;
+              const dLat = (a.lat - b.lat) * metersPerDegLat;
+              const dLon = (a.lon - b.lon) * metersPerDegLon;
+              nearest = Math.min(nearest, Math.hypot(dLat, dLon));
+            }
+            total += nearest;
+          }
+          return total / list.length;
+        }
+        const bboxDiagonal = Math.hypot(
+          (latMax - latMin) * metersPerDegLat,
+          (lonMax - lonMin) * metersPerDegLon,
+        );
+        const averageSpacing = averageNearestNeighborMeters(thinned);
+        const maskRadius =
+          averageSpacing !== null ? averageSpacing * 2.5 : bboxDiagonal * 0.25;
+
+        // Inverse-distance weighting: closer known stops dominate a cell's
+        // estimate, so the surface passes near-exactly through sampled points.
+        // A cell farther than maskRadius from every sample is left as +Infinity,
+        // which no finite threshold can include — it stays unfilled/transparent.
+        const values = new Float64Array(cols * rows);
+        for (let row = 0; row < rows; row += 1) {
+          const lat = latMax - (row / (rows - 1)) * (latMax - latMin);
+          for (let col = 0; col < cols; col += 1) {
+            const lon = lonMin + (col / (cols - 1)) * (lonMax - lonMin);
+            let weightSum = 0;
+            let valueSum = 0;
+            let nearestDistSq = Infinity;
+            let exact;
+            for (const s of thinned) {
+              const dLat = (lat - s.lat) * metersPerDegLat;
+              const dLon = (lon - s.lon) * metersPerDegLon;
+              const distSq = dLat * dLat + dLon * dLon;
+              if (distSq < nearestDistSq) nearestDistSq = distSq;
+              if (distSq < 25) {
+                exact = s.duration;
+                break;
+              }
+              const weight = 1 / (distSq * distSq);
+              weightSum += weight;
+              valueSum += weight * s.duration;
+            }
+            values[row * cols + col] =
+              Math.sqrt(nearestDistSq) > maskRadius
+                ? Infinity
+                : (exact ?? valueSum / weightSum);
+          }
+        }
+        // Negated so d3's native ">= threshold" regions become our "<=
+        // threshold" (closer-than) regions, which nest and grow with time.
+        const negated = values.map((v) => -v);
+        const generator = d3.contours().size([cols, rows]);
+        const toLngLat = ([x, y]) => [
+          lonMin + (x / (cols - 1)) * (lonMax - lonMin),
+          latMax - (y / (rows - 1)) * (latMax - latMin),
+        ];
+
+        const features = [];
+        for (let band = ISO_SURFACE_BANDS; band >= 1; band -= 1) {
+          const threshold = (band / ISO_SURFACE_BANDS) * maxDurationSeconds;
+          const polygon = generator.contour(negated, -threshold);
+          if (!polygon.coordinates.length) continue;
+          features.push({
+            type: "Feature",
+            properties: {
+              threshold,
+              color: isoColorAt(threshold / maxDurationSeconds),
+            },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: polygon.coordinates.map((polygonRings) =>
+                polygonRings.map((ring) => ring.map(toLngLat)),
+              ),
+            },
+          });
+        }
+        return { type: "FeatureCollection", features };
+      }
+
+      let isoMap;
+      let isoMapReady;
+      let isoOriginMarker;
+
+      async function ensureIsoMap() {
+        if (isoMap) return isoMap;
+        const maplibregl = await loadMaplibre();
+        isoMap = new maplibregl.Map({
+          container: "iso-map",
+          style: {
+            version: 8,
+            projection: { type: "globe" },
+            sources: {
+              basemap: {
+                type: "raster",
+                tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+                tileSize: 256,
+                maxzoom: 19,
+                attribution:
+                  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+              },
+            },
+            layers: [
+              {
+                id: "ocean",
+                type: "background",
+                paint: { "background-color": "#b9d9ee" },
+              },
+              { id: "basemap", type: "raster", source: "basemap" },
+            ],
+          },
+          center: [4.47, 50.85], // Belgium
+          zoom: 7.3,
+        });
+        isoMap.addControl(new maplibregl.NavigationControl(), "top-right");
+        isoMapReady = new Promise((resolve) => {
+          isoMap.on("load", () => {
+            isoMap.addSource("iso-surface", {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+            isoMap.addLayer({
+              id: "iso-surface",
+              type: "fill",
+              source: "iso-surface",
+              paint: {
+                "fill-color": ["get", "color"],
+                "fill-opacity": 0.2,
+              },
+            });
+            isoMap.addSource("iso-points", {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+            isoMap.addLayer({
+              id: "iso-points",
+              type: "circle",
+              source: "iso-points",
+              paint: {
+                "circle-radius": 3,
+                "circle-color": "transparent",
+                "circle-stroke-width": 1,
+                "circle-stroke-color": "rgba(0, 0, 0, 0.55)",
+              },
+            });
+            isoMap.on("click", "iso-points", (event) => {
+              const feature = event.features[0];
+              const props = feature.properties;
+              new maplibregl.Popup({ maxWidth: "280px" })
+                .setLngLat(feature.geometry.coordinates)
+                .setHTML(
+                  `<strong>${escapeHtml(props.name)}</strong><br>${escapeHtml(formatDuration(props.durationSeconds))}`,
+                )
+                .addTo(isoMap);
+            });
+            isoMap.on("click", async (event) => {
+              if (
+                isoMap.queryRenderedFeatures(event.point, {
+                  layers: ["iso-points"],
+                }).length
+              )
+                return;
+              await runIsochrone(event.lngLat.lat, event.lngLat.lng);
+            });
+            resolve();
+          });
+        });
+        await isoMapReady;
+        return isoMap;
+      }
+
+      function clearIsoPoints() {
+        el("iso-legend").innerHTML = "";
+        isoMap
+          ?.getSource("iso-points")
+          ?.setData({ type: "FeatureCollection", features: [] });
+        isoMap
+          ?.getSource("iso-surface")
+          ?.setData({ type: "FeatureCollection", features: [] });
+      }
+
+      function clearIsochrone() {
+        isoOriginMarker?.remove();
+        isoOriginMarker = undefined;
+        clearIsoPoints();
+      }
+
+      let isoLastRequestId = 0;
+
+      async function runIsochrone(lat, lon) {
+        if (!planner || !isoMap) return;
+        const departureDate = new Date(el("iso-departure-input").value);
+        if (Number.isNaN(departureDate.getTime())) {
+          setIsoStatus("Pick a valid departure date/time.", true);
+          return;
+        }
+        const maxDurationSeconds = Number(el("iso-duration-input").value);
+        const maxWalkMeters = Number(el("iso-max-walk-input").value);
+        if (!Number.isFinite(maxWalkMeters) || maxWalkMeters < 0) {
+          setIsoStatus(
+            "Max walking distance must be a non-negative number.",
+            true,
+          );
+          return;
+        }
+
+        const requestId = ++isoLastRequestId;
+        const maplibregl = await loadMaplibre();
+        isoOriginMarker?.remove();
+        isoOriginMarker = new maplibregl.Marker({ color: "#0f6b4c" })
+          .setLngLat([lon, lat])
+          .addTo(isoMap);
+        clearIsoPoints();
+
+        const startedAt = performance.now();
+        setIsoStatus("Loading connections and scanning the selected networks…");
+        try {
+          const departureAfter = Math.floor(departureDate.getTime() / 1000);
+          const onProgress = ({ phase, completed, total }) =>
+            setIsoStatus(
+              phase === "loading"
+                ? `Loading timetable pages: ${completed}/${total}…`
+                : "Scanning the selected networks…",
+            );
+          const result = await planner.request(
+            "isochrone",
+            {
+              origin: { lat, lon },
+              departureAfter,
+              maxDurationSeconds,
+              maxWalkMeters,
+              sourceIds: activeSources("iso-source-list").map(
+                (source) => source.id,
+              ),
+            },
+            onProgress,
+          );
+          if (requestId !== isoLastRequestId) return; // superseded by a later click
+
+          const elapsed = Math.round(performance.now() - startedAt);
+          if (result.noAccess) {
+            setIsoStatus(
+              `No stop is within ${maxWalkMeters} m of that point in the selected networks.`,
+              true,
+            );
+            return;
+          }
+          const features = result.points.map((point) => ({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [point.lon, point.lat] },
+            properties: {
+              name: point.name,
+              durationSeconds: point.durationSeconds,
+            },
+          }));
+          isoMap
+            .getSource("iso-points")
+            .setData({ type: "FeatureCollection", features });
+          renderIsoLegend(maxDurationSeconds);
+          setIsoStatus("Building the isochrone surface…");
+          try {
+            const surface = await buildIsoSurface(
+              result.points,
+              { lat, lon },
+              maxDurationSeconds,
+            );
+            if (requestId !== isoLastRequestId) return;
+            isoMap.getSource("iso-surface").setData(surface);
+          } catch (error) {
+            console.error("Isochrone surface failed", error);
+          }
+          setIsoStatus(
+            `Reached ${result.points.length.toLocaleString()} stop(s) within ${Math.round(maxDurationSeconds / 60)} min, scanning ${result.scanned.toLocaleString()} connections in ${elapsed} ms.`,
+          );
+        } catch (error) {
+          if (requestId !== isoLastRequestId) return;
+          console.error(error);
+          setIsoStatus(`Isochrone failed: ${error.message}`, true);
+        }
+      }
+
+      function activateTab(tabId) {
+        for (const [button, panel] of [
+          ["tab-planner", "panel-planner"],
+          ["tab-isochrones", "panel-isochrones"],
+        ]) {
+          const isActive = button === tabId;
+          el(button).setAttribute("aria-selected", String(isActive));
+          el(panel).hidden = !isActive;
+        }
+        if (tabId === "tab-isochrones")
+          ensureIsoMap()
+            .then((map) => map.resize())
+            .catch((error) => {
+              console.error(error);
+              setIsoStatus(`Map failed to load: ${error.message}`, true);
+            });
+      }
+      el("tab-planner").addEventListener("click", () =>
+        activateTab("tab-planner"),
+      );
+      el("tab-isochrones").addEventListener("click", () =>
+        activateTab("tab-isochrones"),
+      );
+
       async function init() {
         try {
           planner = new PlannerClient(
@@ -636,6 +1237,7 @@
           }
 
           renderSourceCheckboxes();
+          renderSourceCheckboxes("iso-source-list");
 
           const origin = setupAutocomplete(
             "origin-input",
@@ -672,6 +1274,10 @@
           el("footer").textContent =
             `${state.sources.length} source(s) · ${totalStops.toLocaleString()} stops total. ` +
             `Journeys use all selected networks, with walking at the start, between rides, and at the end.`;
+          el("iso-footer").textContent =
+            `The colored surface interpolates travel time between reachable stops (dots) — a smoothed ` +
+            `estimate, not a measured walking catchment. Loads the map library, contouring library and ` +
+            `OpenStreetMap tiles from a CDN on first use.`;
 
           el("swap-button").addEventListener("click", () => {
             const originValue = state.origin;
@@ -683,12 +1289,22 @@
           });
 
           el("departure-input").value = toLocalDateTimeValue(new Date());
+          el("iso-departure-input").value = toLocalDateTimeValue(new Date());
 
           setStatus(
             `Ready — ${totalStops.toLocaleString()} stops loaded across ${state.sources.length} source(s).`,
           );
           planButton.disabled = false;
           planButton.textContent = "Plan journey";
+
+          el("iso-source-list")
+            .querySelectorAll("input")
+            .forEach((input) =>
+              input.addEventListener("change", () => clearIsochrone()),
+            );
+          setIsoStatus(
+            `Ready — click the map to compute an isochrone from that point.`,
+          );
         } catch (error) {
           console.error(error);
           setStatus(
@@ -696,6 +1312,7 @@
               `manifest.json/stops.arrow/routes.arrow/trips.arrow/connections partitions) next to this page.`,
             true,
           );
+          setIsoStatus(`Could not load data: ${error.message}`, true);
         }
       }
 

@@ -122,6 +122,10 @@ The planner still reads existing version-3 monthly and version-4 six-hour export
 
 A 24-hour query touches four or five six-hour buckets per region; page time bounds narrow downloads further. Stops load at startup; trip and route labels load only when a journey needs them. The worker owns connections and cached tables; only stop-search metadata and completed journeys cross to the UI. See `arrowconnections.md` for the format and `public/README.md` for performance details and remaining work.
 
+#### Isochrones
+
+The page also has an **Isochrones** tab: a MapLibre map (loaded from a CDN on first use, so a Route-Planner-only visit never fetches it) where clicking scans every selected source for how much of the network is reachable within a chosen travel time, and plots each reached stop colored by how fast it was reached. See [`public/README.md`](public/README.md#isochrones) for how the scan works.
+
 ### More options
 
 #### Post-processing joining connections, and adding nextConnection properties

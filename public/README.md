@@ -16,6 +16,11 @@ from the pinned CDN import in the workers, so the initial visit needs CDN
 access. This is a static site; no routing server or cross-origin isolation
 headers are required.
 
+The page has two tabs: **Route Planner** (above) and **Isochrones** (below).
+Switching to Isochrones lazily loads MapLibre GL JS, d3-contour and
+OpenStreetMap tiles from a CDN, so a Route-Planner-only visit never fetches
+any of them.
+
 ## What a journey can include
 
 All checked sources participate, even when the two selected stops belong
@@ -45,6 +50,41 @@ Walking access/egress adds no vehicle change; changing vehicles adds one,
 including after a walk. Pickup/drop-off value `1` forbids boarding/alighting;
 it does not prevent remaining aboard. Conditional pickup/drop-off values
 `2` and `3` are currently treated as usable, without reservation checks.
+
+## Isochrones
+
+The Isochrones tab shows a MapLibre globe (3D projection, matching the map
+in [ldfetch](https://github.com/LinkedConnections/ldfetch)) centered on
+Belgium. Clicking it runs a one-to-many earliest-arrival Connection Scan
+from that point across every selected source: a classic forward CSA scan
+(Dibbelt et al.) rather than the two-sided profile scan used for
+point-to-point planning, since an isochrone has no destination to trade
+transfers against — only arrival time matters. Walking access from the
+clicked point, and between stops along the way, uses the same haversine/
+5 km/h model and the same maximum-walking-distance setting as the route
+planner (its own Advanced section, default 1000 m).
+
+Reachable stops are rendered as a filled, contoured surface — like a
+classic travel-time map — rather than isolated dots, at a deliberately low
+opacity (20%) so the basemap stays legible underneath. The client
+interpolates travel time over a regular grid with inverse-distance
+weighting from the reachable stops (plus the clicked point itself, at zero
+minutes), then slices that grid into seven nested bands with marching
+squares ([d3-contour](https://github.com/d3/d3-contour), loaded from a CDN
+alongside MapLibre), painted from largest/palest to smallest/darkest so
+each band shows as a ring around the one inside it. A grid cell farther
+from every reachable stop than roughly 2.5× the network's own average
+stop spacing is left unfilled rather than extrapolated, so the surface
+stays close to where stops actually are — empty countryside between two
+distant branches of the same network stays transparent instead of being
+bridged by a flat wash of color. Small blank (hollow) dots mark the actual
+reachable stops the surface was built from, drawn on top of the surface
+and clickable for their name and exact travel time. This is an
+interpolated estimate between sampled stops, not a measured walking
+catchment: with no pedestrian graph, the surface is only as good as the
+straight-line walking model and the spacing of the underlying network. A
+click with no stop within walking distance is reported directly rather
+than silently returning nothing.
 
 ## Loading and workers
 
@@ -130,13 +170,16 @@ existing data in this directory is not rewritten by these code changes.
 | `planner-data.mjs`                                     | Arrow views, LRU cache and backward heap merge                     |
 | `planner-network.mjs`                                  | Source-local ID mapping, station families and spatial neighbors    |
 | `planner-profile.mjs`                                  | Ordered profiles, walking continuations and journey reconstruction |
+| `planner-isochrone.mjs`                                | One-to-many forward CSA scan for the Isochrones tab                |
 
 From the repository root, run `npm run check` and `npm test`. The planner
 cases also run directly with `node test/planner-cases.mjs`. They exercise
 real worker threads (with Node adapters for browser APIs), legacy and new
 formats, compression, page boundaries, cross-network walking, A → B → A
-journeys, source selection, zero-duration ties, cache ownership, and
-comparison with exhaustive small-network routing.
+journeys, source selection, zero-duration ties, cache ownership, isochrone
+scans (walking-only and ride-extended reachability, and the no-stop-in-range
+case) through the same worker protocol, and comparison with exhaustive
+small-network routing.
 
 ## Remaining limitations and useful next work
 
