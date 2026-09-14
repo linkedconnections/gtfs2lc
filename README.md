@@ -76,7 +76,7 @@ The practical takeaways from the investigation that produced the `arrow` format 
 
 1. **Always pass `--compressed` for the RDF formats**, unless something downstream already compresses the file for you. It is the single biggest size lever available — bigger than any format choice below it.
 2. Jelly-RDF, once compressed, is already ~2.4-2.7x more compact than compressed Turtle/N-Triples — the binary RDF format is doing its job. If you need RDF, prefer `jelly` and compress it.
-3. `arrow` isn't "RDF but smaller" — it's a different shape entirely, storing GTFS-native integer indices rather than IRIs and RDF terms, with no per-row object allocation. Reach for it specifically when the consumer is a route-planning algorithm, not a Linked Data client.
+3. `arrow` isn't "RDF but smaller" — it's a different shape entirely, storing GTFS-native integer indices rather than IRIs and RDF terms, with no per-connection object allocation in the browser scan. Reach for it specifically when the consumer is a route-planning algorithm, not a Linked Data client.
 
 ### Step 5: Generate _Linked_ Connections!
 
@@ -96,14 +96,14 @@ That’s it! Want to serve your Linked Connections over HTTP? Take a look at our
 
 ### Step 6: Plan a route in the browser (Arrow format only)
 
-If you generated `arrow` output, `public/index.html` is a self-contained, dependency-free (besides an `apache-arrow` CDN import) route planner: it runs a multi-criteria Profile Connection Scan Algorithm (Pareto-optimal over arrival time and transfers, like [planner.js](https://planner.js.org)) directly against your `arrow` connections, entirely client-side, returning up to six alternative journeys.
+If you generated `arrow` output, `public/index.html` and its adjacent `planner-*.mjs` modules form a route planner (with an `apache-arrow` CDN import): it runs a multi-criteria Profile Connection Scan Algorithm (Pareto-optimal over arrival time and transfers, like [planner.js](https://planner.js.org)) directly against your `arrow` connections, entirely client-side in a Web Worker, returning up to six alternative journeys within a 24-hour window.
 
 ```bash
 gtfs2lc /path/to/extracted/gtfs -f arrow -o public/my-feed
 npx serve public
 ```
 
-(`fetch()` needs the files served over HTTP, not opened as `file://`.) Open the served page, search for an origin and destination stop, pick a departure time, and it plans the journey in memory, without any backend. See `arrowconnections.md` for what the format looks like and why it's shaped this way — in particular, `arrow` output is no longer one file: connections are partitioned geospatially and by month, and the browser fetches only the partitions a given journey actually needs (`--regions <count>` controls how many geospatial regions to create; omit it, or use `1`, to disable geospatial partitioning and keep just the monthly split).
+(`fetch()` needs the files served over HTTP, not opened as `file://`.) Open the served page, search for an origin and destination stop, pick a departure time, and it plans the journey in memory, without any backend. See `arrowconnections.md` for what the format looks like and why it's shaped this way — in particular, `arrow` output is no longer one file: connections are partitioned geospatially and into six-hour UTC periods, and the browser fetches pages overlapping the query window across the selected networks (`--regions <count>` controls how many geospatial regions to create; omit it, or use `1`, to disable geospatial partitioning and keep just the six-hour time split).
 
 #### Multiple networks at once
 
@@ -116,7 +116,11 @@ npx gtfs2lc-sources-index public   # (re)writes public/sources.json
 npx serve public
 ```
 
-The page lets people check/uncheck which sources to search (defaulting to all of them), and fetches every region/month file a query needs across the selected sources concurrently. A journey still has to start and end within one source, though — there's no walking-transfer data connecting stops across different operators yet; see `arrowconnections.md`'s Non-goals.
+The page lets people check/uncheck which sources to search (defaulting to all of them), and fetches every region/time file a query needs across the selected sources concurrently. Journeys can use all selected operators, including A → B → A routes, with walking before, between and after rides. See [`public/README.md`](public/README.md) for the routing assumptions and browser architecture.
+
+The planner still reads existing version-3 monthly and version-4 six-hour exports. New conversions produce version-5 indexed pages within six-hour buckets, with compact relative timestamps. Keep the `planner-*.mjs` files next to `index.html` when serving the page.
+
+A 24-hour query touches four or five six-hour buckets per region; page time bounds narrow downloads further. Stops load at startup; trip and route labels load only when a journey needs them. The worker owns connections and cached tables; only stop-search metadata and completed journeys cross to the UI. See `arrowconnections.md` for the format and `public/README.md` for performance details and remaining work.
 
 ### More options
 

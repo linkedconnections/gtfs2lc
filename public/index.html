@@ -299,7 +299,7 @@
         <a href="https://planner.js.org" target="_blank" rel="noopener"
           >planner.js</a
         >
-        — entirely in your browser, over one or more geospatially and monthly
+        — entirely in your browser, over one or more geospatially and temporally
         partitioned <code>arrow</code>-format datasets written by
         <a
           href="https://github.com/LinkedConnections/gtfs2lc"
@@ -353,7 +353,7 @@
           <summary>Advanced</summary>
           <div class="field">
             <label for="max-walk-input"
-              >Max walking transfer between networks (meters)</label
+              >Maximum walking distance per leg (meters)</label
             >
             <input
               type="number"
@@ -378,41 +378,11 @@
     </main>
 
     <script type="module">
-      import {
-        tableFromIPC,
-        RecordBatchReader,
-      } from "https://cdn.jsdelivr.net/npm/apache-arrow@21.2.0/+esm";
-
-      // Every journey needs to depart somewhere and arrive within this
-      // horizon — see planJourneysForSource. Also bounds how many months
-      // of a source's partitioned connections a query can ever touch.
-      const MAX_SCAN_HORIZON_SECONDS = 3 * 24 * 3600; // 3 days
-      const MAX_DISPLAYED_OPTIONS = 6;
-      // How many rounds of "fetch what we have, discover the regions the
-      // data we just fetched actually touches, fetch those too" to run
-      // before giving up widening and just answering with what's loaded.
-      // See buildConnectionsPool.
-      const MAX_WIDENING_ROUNDS = 3;
-
-      // Cross-network walking transfers (see planCrossSourceJourneys):
-      // 5 km/h, the same walking-speed assumption the geospatial-partitioning
-      // paper (arrowconnections.md) uses for its own route planning evaluation.
-      const WALK_SPEED_METERS_PER_SECOND = 5000 / 3600;
-      // Side length of the lat/lon grid cells used to find nearby stops
-      // across sources without an all-pairs distance scan — see
-      // buildStopGrid/findNearbyStopPairs. Independent of the user-facing
-      // max-walk-distance setting, which just controls how many cells
-      // around a stop get searched.
-      const GRID_CELL_METERS = 500;
-      // Bound the combinatorics of "every walkable bridge × every leg-1
-      // option × every leg-2 option" to the closest bridges and earliest
-      // leg-1 arrivals, rather than exploring all of them.
-      const MAX_BRIDGES_CONSIDERED = 20;
-      const MAX_LEG1_OPTIONS_CONSIDERED = 20;
+      import { PlannerClient } from "./planner-client.mjs";
+      let planner;
 
       const state = {
-        // One entry per discovered/loaded source: { id, name, baseUrl,
-        // manifest, stops, trips, routes, stopFamily, connectionsCache }.
+        // Stop-search metadata only; connections and Arrow tables stay in the worker.
         sources: [],
         origin: null, // { sourceId, stopIdx } | null
         destination: null,
@@ -425,166 +395,6 @@
       function setStatus(message, isError = false) {
         statusEl.textContent = message;
         statusEl.classList.toggle("error", isError);
-      }
-
-      async function fetchResponse(url) {
-        // Force a real network request every time: this page is meant to
-        // be reloaded against locally-regenerated data (a new gtfs2lc run
-        // writes the same file names), and a browser HTTP cache serving a
-        // stale, previously-fetched version of a connections file looks
-        // exactly like "no route found" with no error anywhere.
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok)
-          throw new Error(`Could not fetch ${url}: HTTP ${response.status}`);
-        return response;
-      }
-
-      async function loadSmallTable(url) {
-        return tableFromIPC(await fetchResponse(url));
-      }
-
-      function columnToStringArray(table, name) {
-        const vector = table.getChild(name);
-        const values = new Array(table.numRows);
-        for (let i = 0; i < table.numRows; i += 1) values[i] = vector.get(i);
-        return values;
-      }
-
-      function columnToTypedArray(table, name) {
-        return table.getChild(name).toArray();
-      }
-
-      // `parentIdx`/`regionIdx` were added to stops.arrow after this
-      // format's first releases. An older stops.arrow has no such column —
-      // getChild() returns null rather than throwing — so treat that as
-      // "no station hierarchy / no partitioning known" instead of crashing.
-      function columnToTypedArrayOrDefault(table, name, fallbackValue) {
-        const vector = table.getChild(name);
-        if (vector) return vector.toArray();
-        console.warn(
-          `stops.arrow has no '${name}' column — regenerate with a newer gtfs2lc.`,
-        );
-        return new Int32Array(table.numRows).fill(fallbackValue);
-      }
-
-      /**
-       * Discovers which sources (independently-generated gtfs2lc datasets,
-       * e.g. one per operator) are available. A `sources.json` next to this
-       * page lists them; if there is none, this page falls back to
-       * treating its own directory as the one and only source, so existing
-       * single-source setups keep working unchanged.
-       */
-      async function discoverSources() {
-        try {
-          const response = await fetch("sources.json", { cache: "no-store" });
-          if (response.ok) {
-            const data = await response.json();
-            return data.sources.map((source) => ({
-              id: source.id,
-              name: source.name || source.id,
-              manifestUrl: source.manifest,
-            }));
-          }
-        } catch {
-          // fall through to the single-source default below
-        }
-        return [
-          { id: "default", name: "This feed", manifestUrl: "manifest.json" },
-        ];
-      }
-
-      function baseUrlOf(manifestUrl) {
-        const slash = manifestUrl.lastIndexOf("/");
-        return slash === -1 ? "" : manifestUrl.slice(0, slash + 1);
-      }
-
-      /**
-       * Groups child stops (platforms, boarding areas, ...) under their GTFS
-       * `parent_station`, and lists which stops are worth offering in a
-       * search box: a real station, or a standalone stop with no hierarchy
-       * at all — never a child stop directly, since no connection ever
-       * departs from or arrives at a station-level row (see
-       * arrowconnections.md).
-       */
-      function buildStopFamily(stops) {
-        const childrenOf = new Map();
-        const searchable = [];
-        for (let i = 0; i < stops.id.length; i += 1) {
-          const parent = stops.parentIdx[i];
-          if (parent === -1) {
-            searchable.push(i);
-            continue;
-          }
-          if (!childrenOf.has(parent)) childrenOf.set(parent, []);
-          childrenOf.get(parent).push(i);
-        }
-        return { childrenOf, searchable };
-      }
-
-      /**
-       * Expands a selected stop (usually a station) to itself plus every
-       * descendant stop, so a journey can depart from or arrive at any of
-       * a station's platforms, not just the station row itself.
-       */
-      function expandStopFamily(source, idx) {
-        const expanded = new Set([idx]);
-        const queue = [idx];
-        while (queue.length > 0) {
-          const current = queue.pop();
-          const children = source.stopFamily.childrenOf.get(current);
-          if (!children) continue;
-          for (const child of children) {
-            if (!expanded.has(child)) {
-              expanded.add(child);
-              queue.push(child);
-            }
-          }
-        }
-        return expanded;
-      }
-
-      async function loadSource(descriptor) {
-        const manifest = await (
-          await fetchResponse(descriptor.manifestUrl)
-        ).json();
-        const baseUrl = baseUrlOf(descriptor.manifestUrl);
-
-        const [stopsTable, tripsTable, routesTable] = await Promise.all([
-          loadSmallTable(baseUrl + manifest.files.stops),
-          loadSmallTable(baseUrl + manifest.files.trips),
-          loadSmallTable(baseUrl + manifest.files.routes),
-        ]);
-
-        const stops = {
-          id: columnToStringArray(stopsTable, "stopId"),
-          name: columnToStringArray(stopsTable, "name"),
-          lat: columnToTypedArray(stopsTable, "lat"),
-          lon: columnToTypedArray(stopsTable, "lon"),
-          parentIdx: columnToTypedArrayOrDefault(stopsTable, "parentIdx", -1),
-          regionIdx: columnToTypedArrayOrDefault(stopsTable, "regionIdx", 0),
-        };
-        const trips = {
-          id: columnToStringArray(tripsTable, "tripId"),
-          routeIdx: columnToTypedArray(tripsTable, "routeIdx"),
-          headsign: columnToStringArray(tripsTable, "headsign"),
-        };
-        const routes = {
-          id: columnToStringArray(routesTable, "routeId"),
-          shortName: columnToStringArray(routesTable, "shortName"),
-          longName: columnToStringArray(routesTable, "longName"),
-        };
-
-        return {
-          id: descriptor.id,
-          name: descriptor.name,
-          baseUrl,
-          manifest,
-          stops,
-          trips,
-          routes,
-          stopFamily: buildStopFamily(stops),
-          connectionsCache: new Map(), // "region|month" -> row[]
-        };
       }
 
       function renderSourceCheckboxes() {
@@ -711,684 +521,6 @@
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
       }
 
-      // Every "YYYY-MM" (UTC) month that overlaps [startSeconds, endSeconds].
-      function monthsInRange(startSeconds, endSeconds) {
-        const months = [];
-        let cursor = new Date(startSeconds * 1000);
-        cursor = new Date(
-          Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 1),
-        );
-        const endMonth = new Date(endSeconds * 1000);
-        while (cursor.getTime() <= endMonth.getTime()) {
-          months.push(cursor.toISOString().slice(0, 7));
-          cursor = new Date(
-            Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1),
-          );
-        }
-        return months;
-      }
-
-      async function readConnectionsFile(url, compressed) {
-        const response = await fetchResponse(url);
-        const reader = compressed
-          ? await RecordBatchReader.from(
-              new Response(
-                response.body.pipeThrough(new DecompressionStream("gzip")),
-              ),
-            )
-          : await RecordBatchReader.from(response);
-
-        const rows = [];
-        for await (const batch of reader) {
-          const depStop = batch.getChild("departureStopIdx").toArray();
-          const arrStop = batch.getChild("arrivalStopIdx").toArray();
-          const depTime = batch.getChild("departureTime").toArray(); // BigInt64Array, seconds
-          const arrTime = batch.getChild("arrivalTime").toArray();
-          const trip = batch.getChild("tripIdx").toArray();
-          for (let i = 0; i < batch.numRows; i += 1) {
-            rows.push({
-              dS: depStop[i],
-              aS: arrStop[i],
-              depTime: Number(depTime[i]),
-              arrTime: Number(arrTime[i]),
-              trip: trip[i],
-            });
-          }
-        }
-        return rows;
-      }
-
-      /** Fetches one (region, month) partition, caching it on the source. */
-      async function fetchRegionMonth(source, region, month) {
-        const cacheKey = `${region}|${month}`;
-        if (source.connectionsCache.has(cacheKey)) {
-          return source.connectionsCache.get(cacheKey);
-        }
-        const relativePath =
-          source.manifest.connections?.files?.[region]?.[month];
-        const rows = relativePath
-          ? await readConnectionsFile(
-              source.baseUrl + relativePath,
-              source.manifest.compressed,
-            )
-          : [];
-        source.connectionsCache.set(cacheKey, rows);
-        return rows;
-      }
-
-      /**
-       * The geospatial+temporal pagination mechanism this format's
-       * partitioning enables (see arrowconnections.md): rather than fetch
-       * every region up front, start from just the origin's and
-       * destination's regions, then widen outward for a few rounds by
-       * checking which *other* regions the data already fetched actually
-       * points into (an arrival stop in a region not loaded yet), fetching
-       * those too — each round fetching every newly-needed (region, month)
-       * file concurrently rather than one at a time. This is a heuristic,
-       * not an exhaustive guarantee: a journey that needs to pass through a
-       * region touched by neither endpoint nor any region discovered within
-       * MAX_WIDENING_ROUNDS won't be found. Given a small number of regions
-       * (the common case) this converges immediately in practice.
-       */
-      async function buildConnectionsPool(source, seedRegions, months) {
-        const loadedRegions = new Set();
-        const rows = [];
-        let toLoad = new Set(seedRegions);
-
-        for (let round = 0; round < MAX_WIDENING_ROUNDS; round += 1) {
-          const regionsThisRound = [...toLoad].filter(
-            (region) => !loadedRegions.has(region),
-          );
-          if (regionsThisRound.length === 0) break;
-
-          const fetches = [];
-          for (const region of regionsThisRound) {
-            loadedRegions.add(region);
-            for (const month of months) {
-              fetches.push(fetchRegionMonth(source, region, month));
-            }
-          }
-          // Traverse every newly-needed (region, month) file in parallel.
-          const results = await Promise.all(fetches);
-          for (const regionRows of results) {
-            // Not `rows.push(...regionRows)`: spreading a large array into a
-            // function call blows the engine's argument-count limit (a busy
-            // region/month partition easily has 100,000+ rows) and throws
-            // "Maximum call stack size exceeded" — push one at a time instead.
-            for (const row of regionRows) rows.push(row);
-          }
-
-          if (round === MAX_WIDENING_ROUNDS - 1) break;
-          toLoad = new Set();
-          for (const row of rows) {
-            const region = source.stops.regionIdx[row.aS];
-            if (!loadedRegions.has(region)) toLoad.add(region);
-          }
-        }
-
-        rows.sort((a, b) => a.depTime - b.depTime);
-        return { rows, regionsLoaded: loadedRegions.size };
-      }
-
-      // Two profile entries/options are compared on (arrival, transfers)
-      // alone: whichever criterion set is passed in, an entry only "wins"
-      // by being at least as good on both and strictly better on one.
-      function dominates(a, b) {
-        return a.arrival <= b.arrival && a.transfers <= b.transfers;
-      }
-
-      // Per-stop profile entries additionally carry a `depTime` — the
-      // departure time of the connection that produced them. A later
-      // depTime is *easier* to use (you have longer to get to the stop),
-      // so an entry can only replace another if it is reachable in every
-      // situation the other was AND at least as good: same (arrival,
-      // transfers) test, but only once depTime is at least as large too.
-      // Skipping the depTime check here would let an earlier, better
-      // train silently delete a later, otherwise-non-dominated one that
-      // is still the only option for someone who can't make the earlier
-      // one — collapsing an entire day's worth of alternatives into one.
-      function dominatesAsProfileEntry(a, b) {
-        return a.depTime >= b.depTime && dominates(a, b);
-      }
-
-      function insertNonDominated(list, entry, dominatesFn) {
-        for (const existing of list) if (dominatesFn(existing, entry)) return;
-        for (let i = list.length - 1; i >= 0; i -= 1) {
-          if (dominatesFn(entry, list[i])) list.splice(i, 1);
-        }
-        list.push(entry);
-      }
-
-      /**
-       * The multi-criteria Profile Connection Scan Algorithm (see the CSA
-       * paper, https://arxiv.org/abs/1703.05997, and planner.js's
-       * implementation of it): instead of tracking a single earliest
-       * arrival per stop, it builds a small Pareto-optimal *profile* per
-       * stop over (arrival time, number of transfers) by scanning
-       * connections in *decreasing* departure time. Read backward, each
-       * connection either lets you keep riding the same trip past this
-       * point (no extra transfer — tracked per trip in `tripBest`) or
-       * hop off and use whatever the arrival stop's own profile already
-       * offers (one more transfer). The result at the origin is a genuine
-       * Pareto front: several journeys, each better than every other on at
-       * least one of (departs later, arrives sooner, fewer transfers).
-       *
-       * `rows` must already be sorted ascending by departureTime — the
-       * caller processes it in reverse.
-       */
-      function computeJourneyProfile(rows, destinationSet) {
-        const profile = new Map(); // stopIdx -> Array<profile entry>
-        const tripBest = new Map(); // tripIdx -> Array<option> (no depTime: implicitly "now")
-
-        for (let i = rows.length - 1; i >= 0; i -= 1) {
-          const c = rows[i];
-
-          const options = [];
-          if (destinationSet.has(c.aS)) {
-            // Alighting here already completes the journey.
-            options.push({
-              alightStop: c.aS,
-              alightTime: c.arrTime,
-              arrival: c.arrTime,
-              transfers: 0,
-              next: null,
-            });
-          } else {
-            const arrivalProfile = profile.get(c.aS);
-            if (arrivalProfile) {
-              for (const e of arrivalProfile) {
-                if (e.depTime < c.arrTime) continue;
-                options.push({
-                  alightStop: c.aS,
-                  alightTime: c.arrTime,
-                  arrival: e.arrival,
-                  transfers: e.transfers + 1,
-                  next: e,
-                });
-              }
-            }
-          }
-          const staying = tripBest.get(c.trip);
-          if (staying) for (const option of staying) options.push(option);
-
-          const pruned = [];
-          for (const option of options)
-            insertNonDominated(pruned, option, dominates);
-          if (pruned.length === 0) continue; // this connection leads nowhere useful
-
-          tripBest.set(c.trip, pruned);
-
-          if (!profile.has(c.dS)) profile.set(c.dS, []);
-          const stopProfile = profile.get(c.dS);
-          for (const option of pruned) {
-            insertNonDominated(
-              stopProfile,
-              {
-                depTime: c.depTime,
-                boardStop: c.dS,
-                boardTime: c.depTime,
-                alightStop: option.alightStop,
-                alightTime: option.alightTime,
-                arrival: option.arrival,
-                transfers: option.transfers,
-                trip: c.trip,
-                next: option.next,
-              },
-              dominatesAsProfileEntry,
-            );
-          }
-        }
-        return profile;
-      }
-
-      function collectOriginOptions(profile, originSet, departureAfter) {
-        const merged = [];
-        for (const stop of originSet) {
-          const entries = profile.get(stop);
-          if (!entries) continue;
-          for (const entry of entries) {
-            if (entry.depTime >= departureAfter) {
-              insertNonDominated(merged, entry, dominatesAsProfileEntry);
-            }
-          }
-        }
-        merged.sort((a, b) => a.boardTime - b.boardTime);
-        return merged;
-      }
-
-      // Each profile entry already represents one full leg (board a trip,
-      // ride it — possibly through several intermediate stops — until the
-      // point a transfer or the destination was found) chained via `next`,
-      // so reconstructing the legs of a journey is just walking that chain.
-      function reconstructLegs(originEntry) {
-        const legs = [];
-        for (let entry = originEntry; entry; entry = entry.next) {
-          legs.push({
-            trip: entry.trip,
-            boardStop: entry.boardStop,
-            boardTime: entry.boardTime,
-            alightStop: entry.alightStop,
-            alightTime: entry.alightTime,
-          });
-        }
-        return legs;
-      }
-
-      /**
-       * The reusable core of journey planning within one source: fetches
-       * whatever (region, month) partitions are needed to reach `destinationSet`
-       * from `originSet` (widening outward as necessary — see
-       * buildConnectionsPool), then returns the full, unbounded Pareto-optimal
-       * set of profile entries at the origin. Used directly by
-       * planJourneysForSource, and as a building block for cross-source
-       * journeys (see planCrossSourceJourneys), which need to plan "from here
-       * to any of these candidate stops" rather than to a single station.
-       */
-      async function planWithinSource({
-        source,
-        originSet,
-        destinationSet,
-        departureAfter,
-        scanLimit,
-        onProgress,
-      }) {
-        const months = monthsInRange(departureAfter, scanLimit);
-        const seedRegions = new Set();
-        for (const idx of originSet)
-          seedRegions.add(source.stops.regionIdx[idx]);
-        for (const idx of destinationSet)
-          seedRegions.add(source.stops.regionIdx[idx]);
-
-        const { rows, regionsLoaded } = await buildConnectionsPool(
-          source,
-          seedRegions,
-          months,
-        );
-        onProgress?.(rows.length, regionsLoaded);
-
-        const windowed = rows.filter(
-          (row) => row.depTime >= departureAfter && row.depTime <= scanLimit,
-        );
-        const profile = computeJourneyProfile(windowed, destinationSet);
-        const options = collectOriginOptions(
-          profile,
-          originSet,
-          departureAfter,
-        );
-        return { options, scanned: windowed.length };
-      }
-
-      /**
-       * Plans up to MAX_DISPLAYED_OPTIONS journeys from originIdx to
-       * destinationIdx within a single source, Pareto-optimal over
-       * (arrival time, transfers), all departing at or after
-       * departureAfter.
-       */
-      async function planJourneysForSource({
-        source,
-        originIdx,
-        destinationIdx,
-        departureAfter,
-        onProgress,
-      }) {
-        if (originIdx === destinationIdx) {
-          return {
-            found: true,
-            options: [{ legs: [] }],
-            totalOptions: 1,
-            scanned: 0,
-          };
-        }
-
-        const originSet = expandStopFamily(source, originIdx);
-        const destinationSet = expandStopFamily(source, destinationIdx);
-        const scanLimit = departureAfter + MAX_SCAN_HORIZON_SECONDS;
-
-        const { options: rawOptions, scanned } = await planWithinSource({
-          source,
-          originSet,
-          destinationSet,
-          departureAfter,
-          scanLimit,
-          onProgress,
-        });
-
-        if (rawOptions.length === 0) {
-          return { found: false, options: [], totalOptions: 0, scanned };
-        }
-
-        const options = rawOptions
-          .slice(0, MAX_DISPLAYED_OPTIONS)
-          .map((entry) => ({
-            legs: reconstructLegs(entry),
-            arrival: entry.arrival,
-            transfers: entry.transfers,
-          }));
-
-        return {
-          found: true,
-          options,
-          totalOptions: rawOptions.length,
-          scanned,
-        };
-      }
-
-      function haversineMeters(lat1, lon1, lat2, lon2) {
-        const earthRadiusMeters = 6371000;
-        const toRad = (d) => (d * Math.PI) / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-        const a =
-          Math.sin(dLat / 2) ** 2 +
-          Math.cos(toRad(lat1)) *
-            Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-        return 2 * earthRadiusMeters * Math.asin(Math.sqrt(a));
-      }
-
-      function metersToLatDegrees(meters) {
-        return meters / 111320;
-      }
-
-      function metersToLonDegrees(meters, atLat) {
-        return meters / (111320 * Math.cos((atLat * Math.PI) / 180) || 1);
-      }
-
-      /**
-       * Buckets a source's stops into ~GRID_CELL_METERS lat/lon cells, built
-       * once per source the first time it's needed and cached on the source
-       * object, so finding nearby stops across sources (see
-       * findNearbyStopPairs) is a handful of cell lookups rather than an
-       * all-pairs distance scan — important once a source has tens of
-       * thousands of stops.
-       */
-      function stopGridFor(source) {
-        if (source.stopGrid) return source.stopGrid;
-        const grid = new Map(); // "latCell,lonCell" -> stopIdx[]
-        for (let i = 0; i < source.stops.id.length; i += 1) {
-          const lat = source.stops.lat[i];
-          const lon = source.stops.lon[i];
-          if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-          const latCell = Math.floor(
-            lat / metersToLatDegrees(GRID_CELL_METERS),
-          );
-          const lonCell = Math.floor(
-            lon / metersToLonDegrees(GRID_CELL_METERS, lat),
-          );
-          const key = `${latCell},${lonCell}`;
-          if (!grid.has(key)) grid.set(key, []);
-          grid.get(key).push(i);
-        }
-        source.stopGrid = grid;
-        return grid;
-      }
-
-      /**
-       * The walking-transfer heuristic: every pair of stops, one from each
-       * source, within `maxMeters` of each other by straight-line distance —
-       * sorted closest-first. This is what makes a cross-network journey
-       * possible at all, since no other data connects two independently
-       * generated sources.
-       */
-      function findNearbyStopPairs(sourceA, sourceB, maxMeters) {
-        const gridB = stopGridFor(sourceB);
-        const cellsRadius = Math.max(
-          1,
-          Math.ceil(maxMeters / GRID_CELL_METERS),
-        );
-        const pairs = [];
-        for (let i = 0; i < sourceA.stops.id.length; i += 1) {
-          const lat = sourceA.stops.lat[i];
-          const lon = sourceA.stops.lon[i];
-          if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-          const latCell = Math.floor(
-            lat / metersToLatDegrees(GRID_CELL_METERS),
-          );
-          const lonCell = Math.floor(
-            lon / metersToLonDegrees(GRID_CELL_METERS, lat),
-          );
-          for (let dLat = -cellsRadius; dLat <= cellsRadius; dLat += 1) {
-            for (let dLon = -cellsRadius; dLon <= cellsRadius; dLon += 1) {
-              const candidates = gridB.get(
-                `${latCell + dLat},${lonCell + dLon}`,
-              );
-              if (!candidates) continue;
-              for (const j of candidates) {
-                const distanceMeters = haversineMeters(
-                  lat,
-                  lon,
-                  sourceB.stops.lat[j],
-                  sourceB.stops.lon[j],
-                );
-                if (distanceMeters <= maxMeters) {
-                  pairs.push({ fromIdx: i, toIdx: j, distanceMeters });
-                }
-              }
-            }
-          }
-        }
-        pairs.sort((a, b) => a.distanceMeters - b.distanceMeters);
-        return pairs;
-      }
-
-      function setHasAny(set, otherSet) {
-        for (const value of otherSet) if (set.has(value)) return true;
-        return false;
-      }
-
-      function firstIntersection(setA, setB) {
-        for (const value of setA) if (setB.has(value)) return value;
-        return undefined;
-      }
-
-      /**
-       * Plans a journey that changes networks exactly once, on foot: ride
-       * within originSource to within walking distance of destinationSource,
-       * walk (at WALK_SPEED_METERS_PER_SECOND), then ride within
-       * destinationSource to the final stop. Pareto-optimal over (arrival
-       * time, transfers) across the whole combined journey, same as
-       * planJourneysForSource — a walking transfer counts as one transfer,
-       * same as changing vehicles.
-       *
-       * This is deliberately a *single*-interchange heuristic: it does not
-       * chain through a third source. See arrowconnections.md's Non-goals.
-       */
-      async function planCrossSourceJourneys({
-        originSource,
-        originIdx,
-        destinationSource,
-        destinationIdx,
-        departureAfter,
-        maxWalkMeters,
-        onProgress,
-      }) {
-        const scanLimit = departureAfter + MAX_SCAN_HORIZON_SECONDS;
-
-        const bridges = findNearbyStopPairs(
-          originSource,
-          destinationSource,
-          maxWalkMeters,
-        ).slice(0, MAX_BRIDGES_CONSIDERED);
-        if (bridges.length === 0) {
-          return {
-            found: false,
-            options: [],
-            totalOptions: 0,
-            scanned: 0,
-            noBridges: true,
-          };
-        }
-
-        // Leg 1: origin -> any stop within walking distance of destinationSource.
-        const originSet = expandStopFamily(originSource, originIdx);
-        const bridgeFromSet = new Set();
-        for (const bridge of bridges) {
-          for (const idx of expandStopFamily(originSource, bridge.fromIdx)) {
-            bridgeFromSet.add(idx);
-          }
-        }
-        const leg1 = await planWithinSource({
-          source: originSource,
-          originSet,
-          destinationSet: bridgeFromSet,
-          departureAfter,
-          scanLimit,
-          onProgress,
-        });
-
-        // Leg-1 candidates: genuine profile entries (ride to a bridge
-        // stop), plus — if the origin itself is already within walking
-        // distance of the destination source — a trivial "no ride needed"
-        // candidate. Without this, an origin that's already a bridge stop
-        // would see an empty leg-1 profile (nothing to board there, since
-        // you're already at the walkable stop) and incorrectly report no
-        // journey at all.
-        const leg1Candidates = leg1.options
-          .slice(0, MAX_LEG1_OPTIONS_CONSIDERED)
-          .map((entry) => {
-            const legs = reconstructLegs(entry);
-            return {
-              legs,
-              arrival: entry.arrival,
-              transfers: entry.transfers,
-              arrivedAt:
-                legs.length > 0 ? legs[legs.length - 1].alightStop : originIdx,
-            };
-          });
-        const trivialArrivedAt = firstIntersection(originSet, bridgeFromSet);
-        if (trivialArrivedAt !== undefined) {
-          leg1Candidates.push({
-            legs: [],
-            arrival: departureAfter,
-            transfers: 0,
-            arrivedAt: trivialArrivedAt,
-          });
-        }
-        if (leg1Candidates.length === 0) {
-          return {
-            found: false,
-            options: [],
-            totalOptions: 0,
-            scanned: leg1.scanned,
-          };
-        }
-
-        // Leg 2's profile is computed once, seeded from every bridge
-        // "to" stop's region plus the final destination's region, then
-        // evaluated separately below for each bridge's own walk-arrival time.
-        const destinationSet = expandStopFamily(
-          destinationSource,
-          destinationIdx,
-        );
-        const months = monthsInRange(departureAfter, scanLimit);
-        const leg2SeedRegions = new Set();
-        for (const bridge of bridges) {
-          leg2SeedRegions.add(destinationSource.stops.regionIdx[bridge.toIdx]);
-        }
-        for (const idx of destinationSet) {
-          leg2SeedRegions.add(destinationSource.stops.regionIdx[idx]);
-        }
-        const { rows: leg2Rows, regionsLoaded: leg2Regions } =
-          await buildConnectionsPool(
-            destinationSource,
-            leg2SeedRegions,
-            months,
-          );
-        onProgress?.(leg1.scanned + leg2Rows.length, leg2Regions);
-        const leg2Windowed = leg2Rows.filter(
-          (row) => row.depTime >= departureAfter && row.depTime <= scanLimit,
-        );
-        const leg2Profile = computeJourneyProfile(leg2Windowed, destinationSet);
-
-        const combined = [];
-        for (const leg1Candidate of leg1Candidates) {
-          const {
-            legs: leg1Legs,
-            arrival: leg1Arrival,
-            transfers: leg1Transfers,
-            arrivedAt,
-          } = leg1Candidate;
-
-          for (const bridge of bridges) {
-            if (
-              !expandStopFamily(originSource, bridge.fromIdx).has(arrivedAt)
-            ) {
-              continue;
-            }
-            const walkSeconds =
-              bridge.distanceMeters / WALK_SPEED_METERS_PER_SECOND;
-            const walkDepartTime = leg1Arrival;
-            const walkArriveTime = walkDepartTime + walkSeconds;
-            const walk = {
-              fromStop: arrivedAt,
-              toStop: bridge.toIdx,
-              distanceMeters: bridge.distanceMeters,
-              departTime: walkDepartTime,
-              arriveTime: walkArriveTime,
-            };
-
-            const leg2Set = expandStopFamily(destinationSource, bridge.toIdx);
-            if (setHasAny(leg2Set, destinationSet)) {
-              // The walk itself reaches the destination's network — no
-              // further ride needed.
-              insertNonDominated(
-                combined,
-                {
-                  arrival: walkArriveTime,
-                  transfers: leg1Transfers + 1,
-                  leg1Legs,
-                  walk,
-                  leg2Legs: [],
-                },
-                dominates,
-              );
-            }
-            for (const leg2Entry of collectOriginOptions(
-              leg2Profile,
-              leg2Set,
-              walkArriveTime,
-            )) {
-              insertNonDominated(
-                combined,
-                {
-                  arrival: leg2Entry.arrival,
-                  transfers: leg1Transfers + leg2Entry.transfers + 1,
-                  leg1Legs,
-                  walk,
-                  leg2Legs: reconstructLegs(leg2Entry),
-                },
-                dominates,
-              );
-            }
-          }
-        }
-
-        if (combined.length === 0) {
-          return {
-            found: false,
-            options: [],
-            totalOptions: 0,
-            scanned: leg1.scanned + leg2Windowed.length,
-          };
-        }
-
-        combined.sort((a, b) => {
-          const aStart =
-            a.leg1Legs.length > 0 ? a.leg1Legs[0].boardTime : a.walk.departTime;
-          const bStart =
-            b.leg1Legs.length > 0 ? b.leg1Legs[0].boardTime : b.walk.departTime;
-          return aStart - bStart;
-        });
-
-        return {
-          found: true,
-          options: combined.slice(0, MAX_DISPLAYED_OPTIONS),
-          totalOptions: combined.length,
-          scanned: leg1.scanned + leg2Windowed.length,
-          crossSource: true,
-        };
-      }
-
       function formatTime(seconds) {
         return new Date(seconds * 1000).toLocaleString(undefined, {
           weekday: "short",
@@ -1409,12 +541,8 @@
       }
 
       function renderLeg(source, leg) {
-        const routeIdx = source.trips.routeIdx[leg.trip];
-        const routeName =
-          source.routes.shortName[routeIdx] ||
-          source.routes.longName[routeIdx] ||
-          "";
-        const headsign = source.trips.headsign[leg.trip];
+        const routeName = leg.routeName;
+        const headsign = leg.headsign;
 
         const div = document.createElement("div");
         div.className = "leg";
@@ -1427,7 +555,7 @@
         <span class="stop">${escapeHtml(source.stops.name[leg.alightStop] || source.stops.id[leg.alightStop])}</span>
         <span class="time">${formatTime(leg.alightTime)}</span>
       </div>
-      <div class="trip">${routeName ? escapeHtml(routeName) + " · " : ""}${escapeHtml(headsign || "")}</div>
+      <div class="trip">${escapeHtml(source.name)} · ${routeName ? escapeHtml(routeName) + " · " : ""}${escapeHtml(headsign || "")}</div>
     `;
         return div;
       }
@@ -1443,123 +571,66 @@
         return header;
       }
 
-      // Appends `legs` (all from the same source) to `card`, with a
-      // "change at ..." divider between any two consecutive legs.
-      function appendLegSequence(card, source, legs, precedingAlightTime) {
-        let previousAlightTime = precedingAlightTime;
-        for (const leg of legs) {
-          if (previousAlightTime !== undefined) {
-            const wait = leg.boardTime - previousAlightTime;
-            const div = document.createElement("div");
-            div.className = "transfer";
-            div.textContent = `change at ${source.stops.name[leg.boardStop] || source.stops.id[leg.boardStop]} — ${formatDuration(wait)}`;
-            card.appendChild(div);
-          }
-          card.appendChild(renderLeg(source, leg));
-          previousAlightTime = leg.alightTime;
-        }
-        return previousAlightTime;
-      }
-
-      function renderOption(source, option, index) {
+      function renderOption(option, index) {
         const card = document.createElement("div");
         card.className = "option";
-
-        if (option.legs.length === 0) {
-          card.innerHTML = `<p style="color:var(--muted)">Origin and destination are the same stop.</p>`;
+        if (!option.legs.length) {
+          card.textContent = "Origin and destination are the same station.";
           return card;
         }
-
-        const first = option.legs[0];
-        const last = option.legs[option.legs.length - 1];
         card.appendChild(
           optionHeader(
             index,
-            first.boardTime,
-            last.alightTime,
+            option.departure,
+            option.arrival,
             option.transfers,
           ),
         );
-        appendLegSequence(card, source, option.legs, undefined);
+        let previousArrival;
+        for (const leg of option.legs) {
+          if (
+            previousArrival !== undefined &&
+            leg.boardTime > previousArrival
+          ) {
+            const wait = document.createElement("div");
+            wait.className = "transfer";
+            wait.textContent = `Wait ${formatDuration(leg.boardTime - previousArrival)}`;
+            card.appendChild(wait);
+          }
+          if (leg.kind === "walk") {
+            const from = findSource(leg.from.sourceId);
+            const to = findSource(leg.to.sourceId);
+            const walk = document.createElement("div");
+            walk.className = "walk";
+            walk.textContent = `Walk ${Math.round(leg.distanceMeters)} m (${formatDuration(leg.alightTime - leg.boardTime)}) from ${from.stops.name[leg.from.stopIdx]} (${from.name}) to ${to.stops.name[leg.to.stopIdx]} (${to.name})`;
+            card.appendChild(walk);
+          } else card.appendChild(renderLeg(findSource(leg.sourceId), leg));
+          previousArrival = leg.alightTime;
+        }
         return card;
       }
 
-      function renderCrossSourceOption(
-        originSource,
-        destinationSource,
-        option,
-        index,
-      ) {
-        const card = document.createElement("div");
-        card.className = "option";
-
-        const startTime =
-          option.leg1Legs.length > 0
-            ? option.leg1Legs[0].boardTime
-            : option.walk.departTime;
-        card.appendChild(
-          optionHeader(index, startTime, option.arrival, option.transfers),
-        );
-
-        appendLegSequence(card, originSource, option.leg1Legs, undefined);
-
-        // The walk div itself is the divider between leg 1 and leg 2, so
-        // leg 2's own first leg gets no additional "change at" divider.
-        const walkDiv = document.createElement("div");
-        walkDiv.className = "walk";
-        const walkMinutes = formatDuration(
-          option.walk.arriveTime - option.walk.departTime,
-        );
-        walkDiv.textContent = `walk ${Math.round(option.walk.distanceMeters)} m from ${originSource.stops.name[option.walk.fromStop] || originSource.stops.id[option.walk.fromStop]} to ${destinationSource.stops.name[option.walk.toStop] || destinationSource.stops.id[option.walk.toStop]} — ${walkMinutes}`;
-        card.appendChild(walkDiv);
-
-        appendLegSequence(card, destinationSource, option.leg2Legs, undefined);
-        return card;
-      }
-
-      function renderResults(originSource, destinationSource, result) {
+      function renderResults(result) {
         const results = el("results");
         results.innerHTML = "";
-
         if (!result.found) {
-          results.innerHTML = result.noBridges
-            ? `<p style="color:var(--muted)">No stop in "${destinationSource.name}" is within the configured walking distance of a stop in "${originSource.name}". Try increasing "Max walking transfer" in the Advanced section.</p>`
-            : `<p style="color:var(--muted)">No connection found within the scanned horizon.</p>`;
+          results.textContent =
+            "No journey found within 24 hours across the selected networks.";
           return;
         }
-
-        for (const [index, option] of result.options.entries()) {
-          results.appendChild(
-            result.crossSource
-              ? renderCrossSourceOption(
-                  originSource,
-                  destinationSource,
-                  option,
-                  index,
-                )
-              : renderOption(originSource, option, index),
-          );
-        }
+        for (const [index, option] of result.options.entries())
+          results.appendChild(renderOption(option, index));
       }
 
       async function init() {
         try {
+          planner = new PlannerClient(
+            new Worker(new URL("./planner-worker.mjs", import.meta.url), {
+              type: "module",
+            }),
+          );
           setStatus("Discovering sources…");
-          const descriptors = await discoverSources();
-
-          setStatus(`Loading ${descriptors.length} source(s)…`);
-          const results = await Promise.allSettled(descriptors.map(loadSource));
-          state.sources = results
-            .filter((r) => r.status === "fulfilled")
-            .map((r) => r.value);
-          for (const [index, r] of results.entries()) {
-            if (r.status === "rejected") {
-              console.error(
-                `Failed to load source ${descriptors[index].id}:`,
-                r.reason,
-              );
-            }
-          }
+          state.sources = await planner.request("init");
           if (state.sources.length === 0) {
             throw new Error("no source could be loaded");
           }
@@ -1600,8 +671,7 @@
           );
           el("footer").textContent =
             `${state.sources.length} source(s) · ${totalStops.toLocaleString()} stops total. ` +
-            `Origin and destination from different sources are connected by a single ` +
-            `walking transfer (see "Advanced"), not full multi-hop intermodal routing.`;
+            `Journeys use all selected networks, with walking at the start, between rides, and at the end.`;
 
           el("swap-button").addEventListener("click", () => {
             const originValue = state.origin;
@@ -1652,37 +722,34 @@
           return;
         }
 
-        const originSource = findSource(state.origin.sourceId);
-        const destinationSource = findSource(state.destination.sourceId);
-        const sameSource = originSource.id === destinationSource.id;
-
         planButton.disabled = true;
         const startedAt = performance.now();
         el("results").innerHTML = "";
         try {
           const departureAfter = Math.floor(departureDate.getTime() / 1000);
-          const onProgress = (buffered, regions) =>
+          const onProgress = ({ phase, completed, total }) =>
             setStatus(
-              `Fetched ${regions} region(s), ${buffered.toLocaleString()} connections buffered so far…`,
+              phase === "loading"
+                ? `Loading timetable pages: ${completed}/${total}…`
+                : phase === "labels"
+                  ? "Loading journey details…"
+                  : "Scanning the selected networks…",
             );
 
-          const result = sameSource
-            ? await planJourneysForSource({
-                source: originSource,
-                originIdx: state.origin.stopIdx,
-                destinationIdx: state.destination.stopIdx,
-                departureAfter,
-                onProgress,
-              })
-            : await planCrossSourceJourneys({
-                originSource,
-                originIdx: state.origin.stopIdx,
-                destinationSource,
-                destinationIdx: state.destination.stopIdx,
-                departureAfter,
-                maxWalkMeters,
-                onProgress,
-              });
+          setStatus(
+            "Loading connections and planning a 24-hour journey window…",
+          );
+          const result = await planner.request(
+            "plan",
+            {
+              origin: state.origin,
+              destination: state.destination,
+              departureAfter,
+              maxWalkMeters,
+              sourceIds: activeSources().map((source) => source.id),
+            },
+            onProgress,
+          );
 
           const elapsed = Math.round(performance.now() - startedAt);
           const shown = result.options.length;
@@ -1690,16 +757,13 @@
             result.totalOptions > shown
               ? ` (showing the first ${shown} of ${result.totalOptions} Pareto-optimal alternatives)`
               : "";
-          const via = sameSource
-            ? originSource.name
-            : `${originSource.name} → walk → ${destinationSource.name}`;
           setStatus(
             result.found
-              ? `Found ${shown} journey option${shown === 1 ? "" : "s"}${hiddenNote} via ${via}, scanning ${result.scanned.toLocaleString()} connections in ${elapsed} ms.`
-              : `No journey found via ${via} after scanning ${result.scanned.toLocaleString()} connections in ${elapsed} ms.`,
+              ? `Found ${shown} journey option${shown === 1 ? "" : "s"}${hiddenNote} across the selected networks, scanning ${result.scanned.toLocaleString()} connections in ${elapsed} ms.`
+              : `No journey found across the selected networks after scanning ${result.scanned.toLocaleString()} connections in ${elapsed} ms.`,
             !result.found,
           );
-          renderResults(originSource, destinationSource, result);
+          renderResults(result);
         } catch (error) {
           console.error(error);
           setStatus(`Route planning failed: ${error.message}`, true);
