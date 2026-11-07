@@ -51,7 +51,7 @@ program
   .option("--iri-strategy <path>", "arrow: JSON identity registry")
   .option(
     "--profile <name>",
-    "arrow: linked-connections-v2-alpha or irail-cdn-v1",
+    "arrow: LC2 output preset, linked-connections-v2-alpha or irail-cdn-v1",
   )
   .option(
     "--regions <count>",
@@ -60,6 +60,14 @@ program
   )
   .option("--start-date <date>", "arrow: first service date, inclusive")
   .option("--end-date <date>", "arrow: last service date, inclusive")
+  .option("--license <iri>", "arrow: source license IRI")
+  .option("--rights <statement>", "arrow: rights or attribution statement")
+  .option(
+    "--realtime <path>",
+    "arrow: JSON array of GTFS Realtime feed descriptors",
+  )
+  .option("--release-id <id>", "arrow: immutable release identifier")
+  .option("--url-prefix <path>", "arrow: origin-relative delivery prefix")
   .option("--compressed", "gzip the generated dataset")
   .option("--workers <count>", "number of conversion workers", positiveInteger)
   .showHelpAfterError()
@@ -507,6 +515,11 @@ async function executeBuilder(configurationItem, options) {
         ["--regions", options.regions],
         ["--start-date", options.startDate],
         ["--end-date", options.endDate],
+        ["--license", options.license],
+        ["--rights", options.rights],
+        ["--realtime", options.realtime && path.resolve(options.realtime)],
+        ["--release-id", options.releaseId],
+        ["--url-prefix", options.urlPrefix],
       ])
         if (value !== undefined) arguments_.push(flag, String(value));
     } else arguments_.push("--base-uris", fileName);

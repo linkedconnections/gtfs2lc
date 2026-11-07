@@ -32,6 +32,8 @@ function parseArguments(arguments_, environment = process.env) {
         type: "string",
         default: environment.SNCB_FORMAT || "json",
       },
+      license: { type: "string", default: environment.SNCB_LICENSE },
+      rights: { type: "string", default: environment.SNCB_RIGHTS },
     },
   }).values;
 }
@@ -180,7 +182,11 @@ async function runConverter(feedDirectory, outputDirectory, options) {
     outputDirectory,
   ];
   if (options.compressed) arguments_.push("--compressed");
-  if (options.format === "arrow") arguments_.push("--source-id", "be.sncb");
+  if (options.format === "arrow") {
+    arguments_.push("--source-id", "be.sncb");
+    if (options.license) arguments_.push("--license", options.license);
+    if (options.rights) arguments_.push("--rights", options.rights);
+  }
   if (options.workers) arguments_.push("--workers", String(options.workers));
   arguments_.push(feedDirectory);
 
@@ -235,6 +241,8 @@ async function main(options = parseArguments(process.argv.slice(2))) {
       format: options.format,
       timeZone,
       workers: process.env.SNCB_WORKERS,
+      license: options.license,
+      rights: options.rights,
     });
     console.error(`SNCB build created in ${outputDirectory}`);
   } finally {

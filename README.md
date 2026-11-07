@@ -53,11 +53,11 @@ The CLI defaults to JSON (`linkedConnections.json`); the library defaults to Jel
 
 The `turtle` and `ntriples` formats are RDF 1.2 Message Logs. Every Connection is serialized as one RDF Message, with its quads kept together behind `@message .` or `MESSAGE` delimiters. The output uses RDF/JS terms and [`rdf-parser-ts`](https://github.com/pietercolpaert/rdf-parser.ts) for serialization and parsing.
 
-`arrow` writes a complete **Linked Connections v2-alpha** release: independently readable Arrow IPC files, paged scheduled connections, full calls (including terminals), stops, trips, routes, transfers, optional shapes, stable IRIs and a manifest with hashes. Crowdedness and real-time updates are independent datasets. See [`arrowconnections.md`](arrowconnections.md) for the full contract. The former browser planner belongs in a separate project.
+`arrow` writes a **Linked Connections v2-alpha** release: independently readable Arrow IPC files, paged scheduled connections, stops, trips, routes, transfers, stable IRIs and a JSON-LD manifest. Optional GTFS Realtime feeds can be linked by identifier templates. The iRail preset uses the same format and schemas. See [`arrowconnections.md`](arrowconnections.md) for the full contract. The former browser planner belongs in a separate project.
 
 For _big_ GTFS files, your memory may not be sufficient. Luckily, we’ve implemented a way to use your hard disk instead of your RAM. You can enable this with an option: `gtfs2lc /path/to/extracted/gtfs -f json --store LevelStore`.
 
-RDF conversion uses up to eight workers by default. Use `--workers <count>` to set an explicit limit. Arrow releases are built in the batch process with disk-backed sorting; dictionaries and shapes still require memory.
+RDF conversion uses up to eight workers by default. Use `--workers <count>` to set an explicit limit. Arrow releases are built in the batch process with disk-backed sorting; dictionaries and region trip sets still require memory.
 
 It may also be the case that your disk has limited storage space. In that case you may want to use the `--compressed` option. **For the RDF formats especially, this matters far more than it sounds:** Jelly-RDF, Turtle, and N-Triples are all just as gzip-compressible as any other text-adjacent format, but `gtfs2lc` does not gzip the final merged file unless you ask it to. Skipping `--compressed` on a large feed can mean shipping a file 10-15x larger than it needs to be, for free, with no other change. See [Choosing a format](#choosing-a-format) below for measurements.
 
@@ -103,9 +103,11 @@ gtfs2lc /path/to/extracted/gtfs --format arrow \
   --release-id timetable-20261107 --output data
 ```
 
-Serve `data/` at the origin root, fetch `/manifest.json` once, and follow its file descriptors. Keep releases immutable and replace discovery last. Numeric indices belong to one release; global IRIs link entities across updates. `--source-id` is required; use an identity authority you control. Source cleanup normalizes the extracted CSV files in place.
+Serve `data/` at the origin root, fetch `/manifest.jsonld` once, and follow the table IRI strings and connection page entries (`@id`). The default export follows the [Linked Connections 2-alpha draft](https://linkedconnections.org/specification/2-0-alpha): core stops, trips, routes and transfers tables, plus an explicit list of connection pages. Keep releases immutable and replace discovery last. Numeric indices belong to one release; global IRIs link entities across updates. `--source-id` is required; use an identity authority you control. Source cleanup normalizes the extracted CSV files in place.
 
-Use `--profile irail-cdn-v1` for the explicit iRail compatibility contract, mounting the generated directory at `/data`, or set `--url-prefix`. `--iri-strategy` accepts a complete JSON identity registry, including source overrides and safe resolvers. `--compressed` and `--stream` are rejected for Arrow; HTTP compression is a serving concern.
+Publishers SHOULD supply legal conditions manually with `--license <iri>` and/or `--rights <statement>`; neither is enforced. Use `--realtime feeds.json` to link GTFS Realtime feeds with RFC 6570 trip/stop/route templates; the converter validates these against the generated IRIs. Linked-trip transfers (types 4/5) are preserved for splits, joins and explicit in-seat restrictions.
+
+Use `--profile irail-cdn-v1` for iRail identity defaults and a `/data` delivery prefix. It produces the same LC2-alpha `manifest.jsonld`, schemas and transfer/realtime support as the default preset; it has no separate serialization version. Set `--url-prefix` to change the delivery path for either preset. `--iri-strategy` accepts a complete JSON identity registry, including source overrides and safe resolvers. `--compressed` and `--stream` are rejected for Arrow; HTTP compression is a serving concern.
 
 See [`arrowconnections.md`](arrowconnections.md) for every ordered schema, manifest fields, identifiers, partitioning, consumer algorithms and limitations. [`examples/read-arrow.js`](examples/read-arrow.js) verifies and reads a release over HTTP. Experimental Arrow versions 1–5 require regeneration and updated consumers. A route-planning application is separate from this converter.
 
@@ -154,7 +156,7 @@ The build can be reproduced or customized with environment variables:
 SNCB_START_DATE=2026-06-28 SNCB_DAYS=7 SNCB_FORMAT=jelly npm run build:sncb
 ```
 
-`SNCB_BUILD_DIR`, `SNCB_GTFS_URL`, `SNCB_TIMEZONE`, `SNCB_WORKERS`, and `SNCB_COMPRESSED=1` are also supported. For Arrow use `node scripts/build-sncb.js --format arrow`; it supplies `--source-id be.sncb`. Arrow output cannot use `SNCB_COMPRESSED=1`.
+`SNCB_BUILD_DIR`, `SNCB_GTFS_URL`, `SNCB_TIMEZONE`, `SNCB_WORKERS`, and `SNCB_COMPRESSED=1` are also supported. For Arrow use `node scripts/build-sncb.js --format arrow`; it supplies `--source-id be.sncb`. Optional legal metadata can be set with `--license`/`--rights` or `SNCB_LICENSE`/`SNCB_RIGHTS`. Arrow output cannot use `SNCB_COMPRESSED=1`.
 
 ### Discover and build a Mobility Database feed
 
@@ -198,4 +200,4 @@ Furthermore, also `frequencies.txt` is not supported at this time. We hope to su
 
 - Julián Rojas <julianandres.rojasmelendez@ugent.be>
 
-For `gtfs2lc-build --format arrow`, also supply `--source-id` and your `--id-base` or `--iri-strategy`; saved RDF URI templates are kept for RDF output. Arrow profile, regions and service-date bounds can be passed explicitly.
+For `gtfs2lc-build --format arrow`, also supply `--source-id` and your `--id-base` or `--iri-strategy`; saved RDF URI templates are kept for RDF output. Arrow profile, regions, service-date bounds, release ID, URL prefix, license/rights and realtime feed configuration can be passed explicitly.

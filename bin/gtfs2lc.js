@@ -27,7 +27,7 @@ program
   )
   .option(
     "--profile <name>",
-    "arrow: linked-connections-v2-alpha or irail-cdn-v1",
+    "arrow: LC2 output preset, linked-connections-v2-alpha or irail-cdn-v1",
     "linked-connections-v2-alpha",
   )
   .option("--iri-strategy <path>", "arrow: full JSON identity registry")
@@ -52,6 +52,11 @@ program
     120,
   )
   .option("--license <iri>", "arrow: source license identifier or URL")
+  .option("--rights <statement>", "arrow: rights or attribution statement")
+  .option(
+    "--realtime <path>",
+    "arrow: JSON array of GTFS Realtime feed descriptors",
+  )
   .addOption(new Option("--baseUris <path>").hideHelp())
   .option("-o, --output <path>", "directory in which to store the result")
   .option(
@@ -150,6 +155,10 @@ async function run(sourceArgument, options) {
     endDate: options.endDate,
     defaultTransferTime: options.defaultTransferTime,
     license: options.license,
+    rights: options.rights,
+    realtime: options.realtime
+      ? JSON.parse(await readFile(options.realtime, "utf8"))
+      : undefined,
   });
   const connectionsFile = await mapper.convert(sourcePath, outputPath);
 

@@ -10,24 +10,27 @@ async function main() {
   const sources = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const manifestPath = path.join(targetDir, entry.name, "manifest.json");
     let manifest;
     try {
-      manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+      manifest = JSON.parse(
+        await fs.readFile(
+          path.join(targetDir, entry.name, "manifest.jsonld"),
+          "utf8",
+        ),
+      );
     } catch {
-      continue; // not a directory with a gtfs2lc arrow manifest; skip it
+      continue;
     }
-    if (!(
-      manifest.format === "gtfs2lc-arrow-connections" ||
-      (manifest.format === "linked-connections" &&
-        manifest.version === "2-alpha") ||
-      (manifest.format === "irail-cdn" && manifest.version === 1)
-    ))
+    if (
+      !manifest ||
+      manifest["@type"] !== "Timetable" ||
+      manifest.schemaVersion !== "2-alpha"
+    )
       continue;
     sources.push({
       id: entry.name,
       name: entry.name,
-      manifest: `${entry.name}/manifest.json`,
+      manifest: `${entry.name}/manifest.jsonld`,
     });
   }
   sources.sort((a, b) => a.id.localeCompare(b.id));
