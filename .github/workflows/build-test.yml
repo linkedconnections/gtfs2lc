@@ -2,9 +2,9 @@ name: Node.js CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, feat-arrow]
   pull_request:
-    branches: [master]
+    branches: [master, feat-arrow]
 
 permissions:
   contents: read

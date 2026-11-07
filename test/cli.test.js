@@ -125,89 +125,22 @@ test.each([
   }
 });
 
-test.each([false, true])(
-  "creates valid partitioned arrow output (gzip=%s)",
-  async (compressed) => {
-    await execFileAsync(process.execPath, [
-      cli,
-      "--format",
-      "arrow",
-      ...(compressed ? ["--compressed"] : []),
-      "--regions",
-      "2",
-      "--fresh",
-      "--workers",
-      "2",
-      "--output",
-      output,
-      feed,
-    ]);
-
-    const manifest = JSON.parse(
-      await readFile(path.join(output, "manifest.json"), "utf8"),
-    );
-    expect(manifest.format).toBe("gtfs2lc-arrow-connections");
-    expect(manifest.version).toBe(5);
-    expect(manifest.connections.timePartitionSeconds).toBe(21600);
-    expect(manifest.counts.stops).toBeGreaterThan(0);
-    expect(manifest.partitioning.method).toBe("hub");
-    expect(manifest.partitioning.regionCount).toBe(2);
-    expect(manifest.connections.periods.length).toBeGreaterThan(0);
-    expect(Object.keys(manifest.connections.pages).length).toBe(2);
-
-    const { Table, RecordBatchStreamReader } = require("apache-arrow");
-    const loadTable = async (name) =>
-      new Table(
-        RecordBatchStreamReader.from(
-          name.endsWith(".gz")
-            ? gunzipSync(await readFile(path.join(output, name)))
-            : await readFile(path.join(output, name)),
-        ),
-      );
-
-    const stops = await loadTable(manifest.files.stops);
-    const trips = await loadTable(manifest.files.trips);
-
-    let totalRows = 0;
-    for (const [region, periodsForRegion] of Object.entries(
-      manifest.connections.pages,
-    )) {
-      for (const [period, pages] of Object.entries(periodsForRegion)) {
-        const epoch = Date.parse(`${period}:00:00Z`) / 1000;
-        for (const page of pages) {
-          const connections = await loadTable(page.path);
-          expect(page.epochSeconds).toBe(epoch);
-          expect(connections.schema.metadata.get("epochSeconds")).toBe(
-            String(epoch),
-          );
-          expect(connections.numRows).toBe(page.rowCount);
-          expect(page.rowCount).toBeLessThanOrEqual(50000);
-          totalRows += connections.numRows;
-          let previous = -Infinity;
-          const arrivalRegions = new Set();
-          for (const row of connections) {
-            expect(stops.get(row.departureStopIdx).regionIdx).toBe(
-              Number(region),
-            );
-            const dep = epoch + row.departureTimeOffset;
-            expect(dep).toBeGreaterThanOrEqual(epoch);
-            expect(dep).toBeLessThan(epoch + 21600);
-            expect(dep).toBeGreaterThanOrEqual(previous);
-            expect(epoch + row.arrivalTimeOffset).toBeGreaterThanOrEqual(dep);
-            previous = dep;
-            arrivalRegions.add(stops.get(row.arrivalStopIdx).regionIdx);
-            expect(trips.get(row.tripIdx).tripId).toBeTruthy();
-          }
-          expect(page.minDepartureTime).toBe(
-            epoch + connections.get(0).departureTimeOffset,
-          );
-          expect(page.maxDepartureTime).toBe(previous);
-          expect(page.arrivalRegions).toEqual(
-            [...arrivalRegions].sort((a, b) => a - b),
-          );
-        }
-      }
-    }
-    expect(totalRows).toBeGreaterThan(0);
-  },
-);
+test("Arrow CLI requires a source namespace and rejects stream/compressed output", async () => {
+  for (const args of [
+    [],
+    ["--stream"],
+    ["--source-id", "demo.fixture", "--compressed"],
+  ]) {
+    await expect(
+      execFileAsync(process.execPath, [
+        cli,
+        "--format",
+        "arrow",
+        ...args,
+        "--output",
+        output,
+        feed,
+      ]),
+    ).rejects.toMatchObject({ code: 1 });
+  }
+});

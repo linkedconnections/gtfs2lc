@@ -17,7 +17,13 @@ async function main() {
     } catch {
       continue; // not a directory with a gtfs2lc arrow manifest; skip it
     }
-    if (manifest.format !== "gtfs2lc-arrow-connections") continue;
+    if (!(
+      manifest.format === "gtfs2lc-arrow-connections" ||
+      (manifest.format === "linked-connections" &&
+        manifest.version === "2-alpha") ||
+      (manifest.format === "irail-cdn" && manifest.version === 1)
+    ))
+      continue;
     sources.push({
       id: entry.name,
       name: entry.name,

@@ -11,7 +11,7 @@
   "files": [
     "bin",
     "lib",
-    "public",
+    "examples",
     "scripts/build-sncb.js",
     "baseUris-example.json",
     "arrowconnections.md",

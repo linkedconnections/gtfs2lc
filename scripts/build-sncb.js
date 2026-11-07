@@ -180,6 +180,7 @@ async function runConverter(feedDirectory, outputDirectory, options) {
     outputDirectory,
   ];
   if (options.compressed) arguments_.push("--compressed");
+  if (options.format === "arrow") arguments_.push("--source-id", "be.sncb");
   if (options.workers) arguments_.push("--workers", String(options.workers));
   arguments_.push(feedDirectory);
 
