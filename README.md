@@ -146,6 +146,8 @@ npm test
 
 `npm run check` runs ESLint, Prettier verification, and JavaScript type checking. Tests run against an isolated copy of the sample feed.
 
+Run `npm run test-ci` to collect coverage across the tests, CLI subprocesses, and conversion workers. It writes the Coveralls report to `coverage/lcov.info` and checks minimum coverage of 75% for lines, statements, and branches, and 90% for functions. Unused source files are included in the report with zero coverage.
+
 ### SNCB/NMBS weekly build
 
 Run `npm run build:sncb` to download the latest SNCB/NMBS GTFS feed and generate Jelly-RDF connections for seven service days, starting today in the `Europe/Brussels` timezone. Results are written to `build/sncb/output`.
