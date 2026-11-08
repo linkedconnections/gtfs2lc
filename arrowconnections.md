@@ -273,8 +273,40 @@ Types 4 (in-seat transfer) and 5 (no in-seat transfer) require both trip selecto
 Stop selectors are optional and nullable; supplied endpoints must be stops, not
 stations. `minTransferTime` must be null. One incoming trip may link to several
 outgoing trips (a split), and several incoming trips may link to one outgoing trip
-(a join). GTFS2LC writes these explicit links and does not infer them from
-`block_id` or a shared public train number.
+(a join). GTFS2LC preserves these explicit links. It also derives simple in-seat
+continuations from `block_id` by default; a shared public train number alone never
+creates a link.
+
+For each service date within the requested horizon, trips in the same nonempty
+block are ordered by first departure. A consecutive pair gets a type-4 rule when
+the first trip's last `stop_id` equals the second trip's first `stop_id`, and the
+second departure follows the first arrival by zero to 1500 seconds, inclusive.
+Different platforms of one parent station do not match. Calendar additions and
+removals apply before derivation. Times beyond 24:00 remain on their original
+service date; derivation never bridges different service dates. Blocks with only
+one active trip produce no link. Splits and joins still require explicit rules.
+
+`--no-derive-in-seat-transfers` disables derivation. Set
+`--max-in-seat-transfer-gap <seconds>` to change the default 25-minute maximum;
+zero allows only immediate continuations. The same options are available on
+`gtfs2lc-build` and `scripts/build-sncb.js`. Library users can set
+`deriveInSeatTransfers: false` or `maxInSeatTransferGap` in seconds.
+
+Each ordered trip pair is emitted once, even if it qualifies on multiple dates.
+Any explicit type-4 or type-5 row for that pair suppresses derivation, regardless
+of its stop selectors. Derived rows set both stop selectors to the junction stop
+and leave `minTransferTime` null. They use the existing `entity` IRI template with
+kind `transfers` and a JSON key containing the two raw trip IDs. Other identifiers
+and the core Arrow schemas are unchanged.
+
+The converter prints a JSON summary to stderr and stores it as the
+`inSeatTransferDerivation` schema metadata string in `transfers.arrow`. It records
+`enabled`, `maxGapSeconds`, `derivedLinks` (unique pairs), `qualifyingPairDays`
+(qualifying pairs counted per date before deduplication), and `skipped` counts
+for `explicitRulePresent`, `differentStop`, `missingEndpointTime`, `timeOverlap`,
+and `gapTooLarge`. Each rejected candidate contributes to its first matching
+reason in that order. This provenance distinguishes inferred vehicle
+continuations from the operator's explicit rules.
 
 For type 4, the traveller may stay aboard from the last connection of the from run
 to the first connection of its corresponding to run, without a transfer buffer or

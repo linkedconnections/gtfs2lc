@@ -60,6 +60,14 @@ program
   )
   .option("--start-date <date>", "arrow: first service date, inclusive")
   .option("--end-date <date>", "arrow: last service date, inclusive")
+  .option(
+    "--no-derive-in-seat-transfers",
+    "arrow: disable in-seat transfers derived from block_id",
+  )
+  .option(
+    "--max-in-seat-transfer-gap <seconds>",
+    "arrow: maximum gap for derived in-seat transfers",
+  )
   .option("--license <iri>", "arrow: source license IRI")
   .option("--rights <statement>", "arrow: rights or attribution statement")
   .option(
@@ -515,6 +523,7 @@ async function executeBuilder(configurationItem, options) {
         ["--regions", options.regions],
         ["--start-date", options.startDate],
         ["--end-date", options.endDate],
+        ["--max-in-seat-transfer-gap", options.maxInSeatTransferGap],
         ["--license", options.license],
         ["--rights", options.rights],
         ["--realtime", options.realtime && path.resolve(options.realtime)],
@@ -522,6 +531,8 @@ async function executeBuilder(configurationItem, options) {
         ["--url-prefix", options.urlPrefix],
       ])
         if (value !== undefined) arguments_.push(flag, String(value));
+      if (options.deriveInSeatTransfers === false)
+        arguments_.push("--no-derive-in-seat-transfers");
     } else arguments_.push("--base-uris", fileName);
     if (options.compressed) arguments_.push("--compressed");
     if (options.workers) arguments_.push("--workers", String(options.workers));

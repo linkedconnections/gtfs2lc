@@ -25,7 +25,7 @@ const defaultTimeZone = "Europe/Brussels";
 const root = path.resolve(__dirname, "..");
 
 function parseArguments(arguments_, environment = process.env) {
-  return parseArgs({
+  const { values } = parseArgs({
     args: arguments_,
     options: {
       format: {
@@ -34,8 +34,15 @@ function parseArguments(arguments_, environment = process.env) {
       },
       license: { type: "string", default: environment.SNCB_LICENSE },
       rights: { type: "string", default: environment.SNCB_RIGHTS },
+      "no-derive-in-seat-transfers": { type: "boolean", default: false },
+      "max-in-seat-transfer-gap": { type: "string" },
     },
-  }).values;
+  });
+  return {
+    ...values,
+    deriveInSeatTransfers: !values["no-derive-in-seat-transfers"],
+    maxInSeatTransferGap: values["max-in-seat-transfer-gap"],
+  };
 }
 
 function parsePositiveInteger(value, name) {
@@ -186,6 +193,13 @@ async function runConverter(feedDirectory, outputDirectory, options) {
     arguments_.push("--source-id", "be.sncb");
     if (options.license) arguments_.push("--license", options.license);
     if (options.rights) arguments_.push("--rights", options.rights);
+    if (options.deriveInSeatTransfers === false)
+      arguments_.push("--no-derive-in-seat-transfers");
+    if (options.maxInSeatTransferGap !== undefined)
+      arguments_.push(
+        "--max-in-seat-transfer-gap",
+        options.maxInSeatTransferGap,
+      );
   }
   if (options.workers) arguments_.push("--workers", String(options.workers));
   arguments_.push(feedDirectory);
@@ -243,6 +257,8 @@ async function main(options = parseArguments(process.argv.slice(2))) {
       workers: process.env.SNCB_WORKERS,
       license: options.license,
       rights: options.rights,
+      deriveInSeatTransfers: options.deriveInSeatTransfers,
+      maxInSeatTransferGap: options.maxInSeatTransferGap,
     });
     console.error(`SNCB build created in ${outputDirectory}`);
   } finally {

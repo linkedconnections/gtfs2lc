@@ -46,6 +46,16 @@ program
   )
   .option("--end-date <date>", "arrow: last service day, inclusive")
   .option(
+    "--no-derive-in-seat-transfers",
+    "arrow: disable in-seat transfers derived from same-day block_id chains",
+  )
+  .option(
+    "--max-in-seat-transfer-gap <seconds>",
+    "arrow: maximum gap for derived in-seat transfers",
+    parseNonnegativeInteger,
+    1500,
+  )
+  .option(
     "--default-transfer-time <seconds>",
     "arrow: fallback transfer buffer",
     parseNonnegativeInteger,
@@ -154,6 +164,8 @@ async function run(sourceArgument, options) {
     startDate: options.startDate,
     endDate: options.endDate,
     defaultTransferTime: options.defaultTransferTime,
+    deriveInSeatTransfers: options.deriveInSeatTransfers,
+    maxInSeatTransferGap: options.maxInSeatTransferGap,
     license: options.license,
     rights: options.rights,
     realtime: options.realtime

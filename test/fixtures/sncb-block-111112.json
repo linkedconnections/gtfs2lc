@@ -1,0 +1,26 @@
+{
+  "description": "Synthetic representation of the NMBS 7401 to 5130 continuation reported in issue #167; not a downloaded operator feed.",
+  "stops": [
+    ["liege-guillemins", "Liège-Guillemins"],
+    ["bruxelles-midi", "Bruxelles-Midi"],
+    ["kortrijk", "Courtrai"]
+  ],
+  "trips": [
+    {
+      "id": "7401",
+      "block": "111112",
+      "from": "liege-guillemins",
+      "to": "bruxelles-midi",
+      "departure": "07:00:00",
+      "arrival": "08:56:00"
+    },
+    {
+      "id": "5130",
+      "block": "111112",
+      "from": "bruxelles-midi",
+      "to": "kortrijk",
+      "departure": "09:03:00",
+      "arrival": "10:00:00"
+    }
+  ]
+}
