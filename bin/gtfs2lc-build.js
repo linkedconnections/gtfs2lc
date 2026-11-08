@@ -46,6 +46,36 @@ program
   )
   .option("--output <path>", "output directory")
   .option("--format <format>", "gtfs2lc output format", "json")
+  .option("--source-id <key>", "arrow: persistent logical source namespace")
+  .option("--id-base <iri>", "arrow: stable HTTP(S) identity base")
+  .option("--iri-strategy <path>", "arrow: JSON identity registry")
+  .option(
+    "--profile <name>",
+    "arrow: LC2 output preset, linked-connections-v2-alpha or irail-cdn-v1",
+  )
+  .option(
+    "--regions <count>",
+    "arrow: number of departure regions",
+    positiveInteger,
+  )
+  .option("--start-date <date>", "arrow: first service date, inclusive")
+  .option("--end-date <date>", "arrow: last service date, inclusive")
+  .option(
+    "--no-derive-in-seat-transfers",
+    "arrow: disable in-seat transfers derived from block_id",
+  )
+  .option(
+    "--max-in-seat-transfer-gap <seconds>",
+    "arrow: maximum gap for derived in-seat transfers",
+  )
+  .option("--license <iri>", "arrow: source license IRI")
+  .option("--rights <statement>", "arrow: rights or attribution statement")
+  .option(
+    "--realtime <path>",
+    "arrow: JSON array of GTFS Realtime feed descriptors",
+  )
+  .option("--release-id <id>", "arrow: immutable release identifier")
+  .option("--url-prefix <path>", "arrow: origin-relative delivery prefix")
   .option("--compressed", "gzip the generated dataset")
   .option("--workers <count>", "number of conversion workers", positiveInteger)
   .showHelpAfterError()
@@ -478,11 +508,32 @@ async function executeBuilder(configurationItem, options) {
       "--fresh",
       "--format",
       options.format,
-      "--base-uris",
-      fileName,
       "--output",
       outputDirectory,
     ];
+    if (options.format === "arrow") {
+      for (const [flag, value] of [
+        ["--source-id", options.sourceId],
+        ["--id-base", options.idBase],
+        [
+          "--iri-strategy",
+          options.iriStrategy && path.resolve(options.iriStrategy),
+        ],
+        ["--profile", options.profile],
+        ["--regions", options.regions],
+        ["--start-date", options.startDate],
+        ["--end-date", options.endDate],
+        ["--max-in-seat-transfer-gap", options.maxInSeatTransferGap],
+        ["--license", options.license],
+        ["--rights", options.rights],
+        ["--realtime", options.realtime && path.resolve(options.realtime)],
+        ["--release-id", options.releaseId],
+        ["--url-prefix", options.urlPrefix],
+      ])
+        if (value !== undefined) arguments_.push(flag, String(value));
+      if (options.deriveInSeatTransfers === false)
+        arguments_.push("--no-derive-in-seat-transfers");
+    } else arguments_.push("--base-uris", fileName);
     if (options.compressed) arguments_.push("--compressed");
     if (options.workers) arguments_.push("--workers", String(options.workers));
     arguments_.push(feedDirectory);
@@ -510,6 +561,11 @@ async function executeBuilder(configurationItem, options) {
 }
 
 async function run(queryArgument, options) {
+  if (options.format === "arrow" && !options.sourceId) {
+    throw new Error(
+      "Arrow builds require --source-id; choose a persistent operator namespace",
+    );
+  }
   const configDirectory = path.resolve(options.configDir);
   const configurations = await readConfigurations(configDirectory);
   let selected = matchConfiguration(configurations, queryArgument);

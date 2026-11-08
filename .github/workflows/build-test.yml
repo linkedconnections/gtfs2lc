@@ -2,9 +2,9 @@ name: Node.js CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, feat-arrow]
   pull_request:
-    branches: [master]
+    branches: [master, feat-arrow]
 
 permissions:
   contents: read
@@ -49,8 +49,10 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npm run pretest
       - run: npm run test-ci
 
       - name: Submit coverage results
         uses: coverallsapp/github-action@v2.3.8
+        with:
+          file: coverage/lcov.info
+          format: lcov

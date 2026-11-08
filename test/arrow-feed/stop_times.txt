@@ -1,0 +1,9 @@
+trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type,shape_dist_traveled
+t/loop,,23:50:00,A/1,1,0,0,0
+t/loop,24:10:00,24:12:00,B,5,1,0,1
+t/loop,24:25:00,,A/1,9,0,0,2
+t/shuttle,,08:15:00,B,5,0,0,1
+t/shuttle,08:25:00,,C,9,0,0,2
+t/through,,08:00:00,A/1,10,0,0,0
+t/through,08:10:00,08:12:00,B,20,0,0,1
+t/through,08:23:00,,C,30,0,0,2

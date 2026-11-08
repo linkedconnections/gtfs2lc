@@ -1,0 +1,4 @@
+shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled
+line,50.80,4.30,1,0
+line,50.82,4.32,2,1
+line,50.84,4.34,3,2
