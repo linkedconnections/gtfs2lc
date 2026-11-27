@@ -124,3 +124,23 @@ test.each([
     ).toBe(true);
   }
 });
+
+test("Arrow CLI requires a source namespace and rejects stream/compressed output", async () => {
+  for (const args of [
+    [],
+    ["--stream"],
+    ["--source-id", "demo.fixture", "--compressed"],
+  ]) {
+    await expect(
+      execFileAsync(process.execPath, [
+        cli,
+        "--format",
+        "arrow",
+        ...args,
+        "--output",
+        output,
+        feed,
+      ]),
+    ).rejects.toMatchObject({ code: 1 });
+  }
+});

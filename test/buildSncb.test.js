@@ -53,3 +53,16 @@ test("uses the requested SNCB output format", () => {
     parseArguments(["--format", "turtle"], { SNCB_FORMAT: "json" }),
   ).toMatchObject({ format: "turtle" });
 });
+
+test("SNCB builds expose the in-seat derivation settings", () => {
+  expect(parseArguments([], {})).toMatchObject({ deriveInSeatTransfers: true });
+  expect(
+    parseArguments(
+      ["--no-derive-in-seat-transfers", "--max-in-seat-transfer-gap", "600"],
+      {},
+    ),
+  ).toMatchObject({
+    deriveInSeatTransfers: false,
+    maxInSeatTransferGap: "600",
+  });
+});

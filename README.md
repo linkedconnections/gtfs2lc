@@ -49,15 +49,34 @@ Successfully finished the previous steps? Then you can now generate actual depar
 gtfs2lc /path/to/extracted/gtfs -f json
 ```
 
-The default output is a binary Jelly-RDF stream (`linkedConnections.jelly`). We support other formats such as `jsonld`, `turtle`, `ntriples`, and `csv` through the `--format` option.
+The CLI defaults to JSON (`linkedConnections.json`); the library defaults to Jelly-RDF. Use `--format jelly` for a binary Jelly-RDF stream (`linkedConnections.jelly`). We support other formats such as `jsonld`, `turtle`, `ntriples`, `csv`, and `arrow` through the `--format` option.
 
 The `turtle` and `ntriples` formats are RDF 1.2 Message Logs. Every Connection is serialized as one RDF Message, with its quads kept together behind `@message .` or `MESSAGE` delimiters. The output uses RDF/JS terms and [`rdf-parser-ts`](https://github.com/pietercolpaert/rdf-parser.ts) for serialization and parsing.
 
+`arrow` writes a **Linked Connections v2-alpha** release: independently readable Arrow IPC files, paged scheduled connections, stops, trips, routes, transfers, stable IRIs and a JSON-LD manifest. Optional GTFS Realtime feeds can be linked by identifier templates. The iRail preset uses the same format and schemas. See [`arrowconnections.md`](arrowconnections.md) for the full contract. The former browser planner belongs in a separate project.
+
 For _big_ GTFS files, your memory may not be sufficient. Luckily, we’ve implemented a way to use your hard disk instead of your RAM. You can enable this with an option: `gtfs2lc /path/to/extracted/gtfs -f json --store LevelStore`.
 
-Conversion uses up to eight workers by default. Use `--workers <count>` to set an explicit limit.
+RDF conversion uses up to eight workers by default. Use `--workers <count>` to set an explicit limit. Arrow releases are built in the batch process with disk-backed sorting; dictionaries and region trip sets still require memory.
 
-It may also be the case that your disk has limited storage space. In that case you may want to use the `--compressed` option.
+It may also be the case that your disk has limited storage space. In that case you may want to use the `--compressed` option. **For the RDF formats especially, this matters far more than it sounds:** Jelly-RDF, Turtle, and N-Triples are all just as gzip-compressible as any other text-adjacent format, but `gtfs2lc` does not gzip the final merged file unless you ask it to. Skipping `--compressed` on a large feed can mean shipping a file 10-15x larger than it needs to be, for free, with no other change. See [Choosing a format](#choosing-a-format) below for measurements.
+
+### Choosing a format
+
+There is no single "best" format — it depends on what you're going to do with the output. These numbers come from converting a real, ~150-day national railway GTFS feed (SNCB/NMBS) and measuring a 200,000-connection (2,000,000-quad) sample; exact ratios will vary with your feed's identifier lengths and stop/trip/route cardinality, but the relative ordering is representative.
+
+| Format                | Use it when…                                                                                         | Raw size                                                                                 | Gzipped size                                  |
+| --------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `jelly` (default)     | You want RDF and can compress the file yourself (`--compressed`, or gzip downstream)                 | 27.5 bytes/quad                                                                          | **1.95 bytes/quad**                           |
+| `turtle` / `ntriples` | You want a human-readable or maximally interoperable RDF serialization, and don't mind a larger file | 250.8 bytes/quad                                                                         | 4.65 bytes/quad                               |
+| `jsonld` / `csv`      | You're feeding a JSON- or spreadsheet-oriented tool downstream                                       | similar order of magnitude to `ntriples`, format-dependent                               | —                                             |
+| `arrow`               | Typed connection scans and globally linked timetable tables                                          | v2-alpha includes event keys and IRIs; the former seven-column measurements do not apply | Negotiate HTTP compression when serving files |
+
+The practical takeaways from the investigation that produced the `arrow` format (see `arrowconnections.md` for the full story):
+
+1. **Always pass `--compressed` for the RDF formats**, unless something downstream already compresses the file for you. It is the single biggest size lever available — bigger than any format choice below it.
+2. Jelly-RDF, once compressed, is already ~2.4-2.7x more compact than compressed Turtle/N-Triples — the binary RDF format is doing its job. If you need RDF, prefer `jelly` and compress it.
+3. `arrow` isn't "RDF but smaller" — it's a different shape entirely, storing typed indices for scans alongside explicit global IRI references, with no per-connection object allocation in the browser scan. Reach for it specifically when the consumer is a route-planning algorithm, not a Linked Data client.
 
 ### Step 5: Generate _Linked_ Connections!
 
@@ -74,6 +93,25 @@ gtfs2lc /path/to/extracted/gtfs -f jsonld -b baseUris.json
 ```
 
 That’s it! Want to serve your Linked Connections over HTTP? Take a look at our work over here: [The Linked Connection’s server](https://github.com/julianrojas87/linked-connections-server) (WIP)
+
+### Step 6: Publish an Arrow release
+
+```bash
+gtfs2lc /path/to/extracted/gtfs --format arrow \
+  --source-id example.transit --id-base https://data.example.org/id \
+  --regions 4 --start-date 20261107 --end-date 20261114 \
+  --release-id timetable-20261107 --output data
+```
+
+Serve `data/` at the origin root, fetch `/manifest.jsonld` once, and follow the table IRI strings and connection page entries (`@id`). The default export follows the [Linked Connections 2-alpha draft](https://linkedconnections.org/specification/2-0-alpha): core stops, trips, routes and transfers tables, plus an explicit list of connection pages. Keep releases immutable and replace discovery last. Numeric indices belong to one release; global IRIs link entities across updates. `--source-id` is required; use an identity authority you control. Source cleanup normalizes the extracted CSV files in place.
+
+Publishers SHOULD supply legal conditions manually with `--license <iri>` and/or `--rights <statement>`; neither is enforced. Use `--realtime feeds.json` to link GTFS Realtime feeds with RFC 6570 trip/stop/route templates; the converter validates these against the generated IRIs. Linked-trip transfers (types 4/5) are preserved for splits, joins and explicit in-seat restrictions.
+
+Arrow conversion also derives type-4 in-seat transfers from consecutive trips sharing a `block_id` on the same service date. The junction must have the exact same `stop_id`, with a nonnegative gap of at most 25 minutes. Explicit type-4/5 rules take precedence. Use `--no-derive-in-seat-transfers` to disable this behaviour, or `--max-in-seat-transfer-gap <seconds>` to change the default 1500-second limit. Both build commands accept these flags too. Conversion logs and the `inSeatTransferDerivation` JSON metadata in `transfers.arrow` record the settings, derived link count, and skipped candidates.
+
+Use `--profile irail-cdn-v1` for iRail identity defaults and a `/data` delivery prefix. It produces the same LC2-alpha `manifest.jsonld`, schemas and transfer/realtime support as the default preset; it has no separate serialization version. Set `--url-prefix` to change the delivery path for either preset. `--iri-strategy` accepts a complete JSON identity registry, including source overrides and safe resolvers. `--compressed` and `--stream` are rejected for Arrow; HTTP compression is a serving concern.
+
+See [`arrowconnections.md`](arrowconnections.md) for every ordered schema, manifest fields, identifiers, partitioning, consumer algorithms and limitations. [`examples/read-arrow.js`](examples/read-arrow.js) verifies and reads a release over HTTP. Experimental Arrow versions 1–5 require regeneration and updated consumers. A route-planning application is separate from this converter.
 
 ### More options
 
@@ -110,6 +148,8 @@ npm test
 
 `npm run check` runs ESLint, Prettier verification, and JavaScript type checking. Tests run against an isolated copy of the sample feed.
 
+Run `npm run test-ci` to collect coverage across the tests, CLI subprocesses, and conversion workers. It writes the Coveralls report to `coverage/lcov.info` and checks minimum coverage of 75% for lines, statements, and branches, and 90% for functions. Unused source files are included in the report with zero coverage.
+
 ### SNCB/NMBS weekly build
 
 Run `npm run build:sncb` to download the latest SNCB/NMBS GTFS feed and generate Jelly-RDF connections for seven service days, starting today in the `Europe/Brussels` timezone. Results are written to `build/sncb/output`.
@@ -120,7 +160,7 @@ The build can be reproduced or customized with environment variables:
 SNCB_START_DATE=2026-06-28 SNCB_DAYS=7 SNCB_FORMAT=jelly npm run build:sncb
 ```
 
-`SNCB_BUILD_DIR`, `SNCB_GTFS_URL`, `SNCB_TIMEZONE`, `SNCB_WORKERS`, and `SNCB_COMPRESSED=1` are also supported.
+`SNCB_BUILD_DIR`, `SNCB_GTFS_URL`, `SNCB_TIMEZONE`, `SNCB_WORKERS`, and `SNCB_COMPRESSED=1` are also supported. For Arrow use `node scripts/build-sncb.js --format arrow`; it supplies `--source-id be.sncb`. Optional legal metadata can be set with `--license`/`--rights` or `SNCB_LICENSE`/`SNCB_RIGHTS`. Arrow output cannot use `SNCB_COMPRESSED=1`.
 
 ### Discover and build a Mobility Database feed
 
@@ -163,3 +203,5 @@ Furthermore, also `frequencies.txt` is not supported at this time. We hope to su
 - Pieter Colpaert <pieter.colpaert@ugent.be>
 
 - Julián Rojas <julianandres.rojasmelendez@ugent.be>
+
+For `gtfs2lc-build --format arrow`, also supply `--source-id` and your `--id-base` or `--iri-strategy`; saved RDF URI templates are kept for RDF output. Arrow profile, regions, service-date bounds, release ID, URL prefix, license/rights and realtime feed configuration can be passed explicitly.

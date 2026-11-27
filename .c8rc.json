@@ -1,0 +1,15 @@
+{
+  "all": true,
+  "include": [
+    "lib/**/*.js",
+    "bin/**/*.js",
+    "scripts/build-sncb.js",
+    "examples/**/*.js"
+  ],
+  "reporter": ["text", "lcov"],
+  "check-coverage": true,
+  "lines": 75,
+  "statements": 75,
+  "functions": 90,
+  "branches": 75
+}

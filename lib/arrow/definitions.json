@@ -1,0 +1,182 @@
+{
+  "connections": [
+    {
+      "name": "departureStopIdx",
+      "type": "Int32",
+      "nullable": false
+    },
+    {
+      "name": "arrivalStopIdx",
+      "type": "Int32",
+      "nullable": false
+    },
+    {
+      "name": "departureTimeOffset",
+      "type": "Uint32",
+      "nullable": false
+    },
+    {
+      "name": "arrivalTimeOffset",
+      "type": "Uint32",
+      "nullable": false
+    },
+    {
+      "name": "tripIdx",
+      "type": "Int32",
+      "nullable": false
+    },
+    {
+      "name": "pickupType",
+      "type": "Uint8",
+      "nullable": false
+    },
+    {
+      "name": "dropOffType",
+      "type": "Uint8",
+      "nullable": false
+    },
+    {
+      "name": "serviceDate",
+      "type": "Uint32",
+      "nullable": false
+    },
+    {
+      "name": "stopSequence",
+      "type": "Uint32",
+      "nullable": false
+    },
+    {
+      "name": "arrivalStopSequence",
+      "type": "Uint32",
+      "nullable": false
+    },
+    {
+      "name": "iri",
+      "type": "Utf8",
+      "nullable": false
+    }
+  ],
+  "stops": [
+    {
+      "name": "name",
+      "type": "Utf8",
+      "nullable": true
+    },
+    {
+      "name": "lat",
+      "type": "Float64",
+      "nullable": true
+    },
+    {
+      "name": "lon",
+      "type": "Float64",
+      "nullable": true
+    },
+    {
+      "name": "parentIdx",
+      "type": "Int32",
+      "nullable": false
+    },
+    {
+      "name": "minTransferTime",
+      "type": "Uint32",
+      "nullable": false
+    },
+    {
+      "name": "iri",
+      "type": "Utf8",
+      "nullable": false
+    },
+    {
+      "name": "regionIri",
+      "type": "Utf8",
+      "nullable": true
+    }
+  ],
+  "trips": [
+    {
+      "name": "routeIdx",
+      "type": "Int32",
+      "nullable": false
+    },
+    {
+      "name": "headsign",
+      "type": "Utf8",
+      "nullable": true
+    },
+    {
+      "name": "shortName",
+      "type": "Utf8",
+      "nullable": true
+    },
+    {
+      "name": "iri",
+      "type": "Utf8",
+      "nullable": false
+    }
+  ],
+  "routes": [
+    {
+      "name": "shortName",
+      "type": "Utf8",
+      "nullable": true
+    },
+    {
+      "name": "longName",
+      "type": "Utf8",
+      "nullable": true
+    },
+    {
+      "name": "routeType",
+      "type": "Int32",
+      "nullable": false
+    },
+    {
+      "name": "iri",
+      "type": "Utf8",
+      "nullable": false
+    }
+  ],
+  "transfers": [
+    {
+      "name": "fromStopIdx",
+      "type": "Int32",
+      "nullable": true
+    },
+    {
+      "name": "toStopIdx",
+      "type": "Int32",
+      "nullable": true
+    },
+    {
+      "name": "transferType",
+      "type": "Uint8",
+      "nullable": false
+    },
+    {
+      "name": "minTransferTime",
+      "type": "Uint32",
+      "nullable": true
+    },
+    {
+      "name": "fromTripIdx",
+      "type": "Int32",
+      "nullable": true
+    },
+    {
+      "name": "toTripIdx",
+      "type": "Int32",
+      "nullable": true
+    },
+    {
+      "name": "fromRouteIdx",
+      "type": "Int32",
+      "nullable": true
+    },
+    {
+      "name": "toRouteIdx",
+      "type": "Int32",
+      "nullable": true
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "@context": "https://linkedconnections.org/specification/2-0-alpha/context.jsonld",
+  "@id": "/manifest.jsonld",
+  "@type": "Timetable",
+  "schemaVersion": "2-alpha",
+  "releaseId": "review",
+  "generatedAt": "2026-11-07T22:28:19.270Z",
+  "timeZone": "Europe/Brussels",
+  "coverageStart": "2026-10-24T06:00:00.000Z",
+  "coverageEnd": "2026-10-25T23:12:01.000Z",
+  "stops": "/releases/review/stops.arrow",
+  "routes": "/releases/review/routes.arrow",
+  "trips": "/releases/review/trips.arrow",
+  "transfers": "/releases/review/transfers.arrow",
+  "connections": {
+    "@type": "ConnectionCollection",
+    "pages": [
+      {
+        "@id": "/releases/review/connections/0/2026-10-24T06/00000.arrow",
+        "epochSeconds": 1792821600,
+        "@type": "ConnectionsPage",
+        "minDepartureTime": "2026-10-24T06:00:00.000Z",
+        "maxDepartureTime": "2026-10-24T06:15:00.000Z",
+        "region": "https://example.org/id/demo.fixture/regions/B",
+        "arrivalRegions": ["https://example.org/id/demo.fixture/regions/B"]
+      },
+      {
+        "@id": "/releases/review/connections/0/2026-10-24T18/00000.arrow",
+        "epochSeconds": 1792864800,
+        "@type": "ConnectionsPage",
+        "minDepartureTime": "2026-10-24T21:50:00.000Z",
+        "maxDepartureTime": "2026-10-24T22:12:00.000Z",
+        "region": "https://example.org/id/demo.fixture/regions/B",
+        "arrivalRegions": ["https://example.org/id/demo.fixture/regions/B"]
+      },
+      {
+        "@id": "/releases/review/connections/0/2026-10-25T06/00000.arrow",
+        "epochSeconds": 1792908000,
+        "@type": "ConnectionsPage",
+        "minDepartureTime": "2026-10-25T07:00:00.000Z",
+        "maxDepartureTime": "2026-10-25T07:15:00.000Z",
+        "region": "https://example.org/id/demo.fixture/regions/B",
+        "arrivalRegions": ["https://example.org/id/demo.fixture/regions/B"]
+      },
+      {
+        "@id": "/releases/review/connections/0/2026-10-25T18/00000.arrow",
+        "epochSeconds": 1792951200,
+        "@type": "ConnectionsPage",
+        "minDepartureTime": "2026-10-25T22:50:00.000Z",
+        "maxDepartureTime": "2026-10-25T23:12:00.000Z",
+        "region": "https://example.org/id/demo.fixture/regions/B",
+        "arrivalRegions": ["https://example.org/id/demo.fixture/regions/B"]
+      }
+    ]
+  }
+}
